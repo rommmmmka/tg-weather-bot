@@ -1,12 +1,10 @@
 import requests
 import locale
 from datetime import datetime
-from pprint import pprint
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
-from aiogram.types import ParseMode, ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ParseMode, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.utils import executor
-from aiogram.utils.markdown import bold, text
 from tokens import BOT_TOKEN, OPEN_WEATHER_TOKEN
 
 EMOJI = {
@@ -26,45 +24,43 @@ def get_base_kb():
     )
 
 
-def get_weather(city, message):
+def get_weather(city):
     try:
         request_coords = requests.get(
-            f"http://api.openweathermap.org/geo/1.0/direct?q={city}, BY&limit=1&appid={OPEN_WEATHER_TOKEN}")
+            f"https://api.openweathermap.org/geo/1.0/direct?q={city}, BY&limit=1&appid={OPEN_WEATHER_TOKEN}")
         coords_data = request_coords.json()
         if not coords_data:
             request_coords = requests.get(
-                f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={OPEN_WEATHER_TOKEN}")
+                f"https://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={OPEN_WEATHER_TOKEN}")
             coords_data = request_coords.json()
         lat = coords_data[0]["lat"]
         lon = coords_data[0]["lon"]
         request_weather = requests.get(
             f"https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=minutely,hourly,alerts&appid={OPEN_WEATHER_TOKEN}&units=metric&lang=ru")
         weather_data = request_weather.json()
-        # pprint(weather_data)
         locale.setlocale(locale.LC_ALL, ('ru_RU', 'UTF-8'))
         weather_desc = weather_data['current']['weather'][0]['main']
         if weather_desc in EMOJI:
             weather_desc = f"{EMOJI[weather_desc]} "
         else:
             weather_desc = ""
-        answer = text(f"*Текущая погода:*\n",
-                      f"{round(weather_data['current']['temp'])}°C (ощущается как {round(weather_data['current']['feels_like'])}°C)\n"
-                      f"Влажность: {weather_data['current']['humidity']}%\nСкорость ветра: {weather_data['current']['wind_speed']} м/c\n"
-                      f"{weather_desc}{weather_data['current']['weather'][0]['description'].capitalize()}\n", sep='')
+        answer = f"*Текущая погода:*\n" \
+                 f"{round(weather_data['current']['temp'])}°C (ощущается как {round(weather_data['current']['feels_like'])}°C)\n" \
+                 f"Влажность: {weather_data['current']['humidity']}%\nСкорость ветра: {weather_data['current']['wind_speed']} м/c\n" \
+                 f"{weather_desc}{weather_data['current']['weather'][0]['description'].capitalize()}\n"
         for i in range(3):
             weather_desc = weather_data['daily'][i]['weather'][0]['main']
             if weather_desc in EMOJI:
                 weather_desc = f"{EMOJI[weather_desc]} "
             else:
                 weather_desc = ""
-            answer += text(
-                bold(f"Прогноз на {datetime.utcfromtimestamp(weather_data['daily'][i]['dt']).strftime('%e %B %Y')}:\n"),
-                f"Утро: {round(weather_data['daily'][i]['temp']['morn'])}°C, день: {round(weather_data['daily'][i]['temp']['day'])}°C, вечер: {round(weather_data['daily'][i]['temp']['eve'])}°C, ночь: {round(weather_data['daily'][i]['temp']['night'])}°C\n"
-                f"Влажность: {weather_data['daily'][i]['humidity']}%\nСкорость ветра: {weather_data['daily'][i]['wind_speed']} м/c\n"
-                f"{weather_desc}{weather_data['daily'][i]['weather'][0]['description'].capitalize()}\n", sep='')
+            answer += f"*Прогноз на {datetime.utcfromtimestamp(weather_data['daily'][i]['dt']).strftime('%e %B %Y')}:*\n" \
+                      f"Утро: {round(weather_data['daily'][i]['temp']['morn'])}°C, день: {round(weather_data['daily'][i]['temp']['day'])}°C, вечер: {round(weather_data['daily'][i]['temp']['eve'])}°C, ночь: {round(weather_data['daily'][i]['temp']['night'])}°C\n" \
+                      f"Влажность: {weather_data['daily'][i]['humidity']}%\nСкорость ветра: {weather_data['daily'][i]['wind_speed']} м/c\n" \
+                      f"{weather_desc}{weather_data['daily'][i]['weather'][0]['description'].capitalize()}\n"
         return answer, get_base_kb().add(KeyboardButton(f"/weather {city}"))
-    except Exception as ex:
-        return text("*Ошибка!*\nПроверьте правильность ввода названия города!"), None
+    except Exception:
+        return "*Ошибка!*\nПроверьте правильность ввода названия города!", None
 
 
 bot = Bot(token=BOT_TOKEN)
@@ -73,12 +69,9 @@ dp = Dispatcher(bot)
 
 @dp.message_handler(commands=["start", "help"])
 async def start_command(message: types.Message):
-    await message.reply(f"Привет! Вот список моих команд:\n"
-                        f"/start\n"
-                        f"/help\n"
-                        f"/weather [город]\n"
-                        f"/w [город]\n"
-                        f"/about", reply_markup=get_base_kb() if message.get_command() == "/start" else None)
+    await message.reply(f"*Привет! Вот список моих команд:*\n/start\n/help\n/weather \[город]\n/w \[город]\n/about",
+                        reply_markup=get_base_kb() if message.get_command() == "/start" else None,
+                        parse_mode=ParseMode.MARKDOWN, disable_notification=True)
 
 
 @dp.message_handler(commands=["about"])
@@ -91,16 +84,17 @@ async def start_command(message: types.Message):
         "оставались на высочайшем уровне. Здесь трудились и трудятся настоящие специалисты-профессионалы в своей "
         "области.\n\nВ последние годы, в рамках проекта по модернизации станции, было введено в эксплуатацию множество "
         "новых автоматизированных метеорологических средств, разработанных совместно с Белорусским Государственным "
-        "Университетом Информатики и Радиоэлектроники.", parse_mode=ParseMode.MARKDOWN)
+        "Университетом Информатики и Радиоэлектроники.", parse_mode=ParseMode.MARKDOWN, disable_notification=True)
 
 
 @dp.message_handler(commands=["weather", "w"])
 async def start_command(message: types.Message):
     if message.get_args() == "":
-        await message.reply("Введите команду в формате /weather [город] или /w [город]")
+        await message.reply("*Ошибка!* Введите команду в формате /weather \[город] или /w \[город]",
+                            parse_mode=ParseMode.MARKDOWN, disable_notification=True)
     else:
-        answer, kb = get_weather(message.get_args(), message)
-        await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=kb)
+        answer, kb = get_weather(message.get_args())
+        await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=kb, disable_notification=True)
 
 
 if __name__ == '__main__':
