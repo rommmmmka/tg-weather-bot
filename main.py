@@ -105,10 +105,10 @@ async def weather_command(message: types.Message):
 
 @dp.message_handler(commands=["getchatid"])
 async def getchatid_command(message: types.Message):
-    await message.reply(message.chat.id)
+    await message.reply(message.chat.id, disable_notification=True)
 
 
-@dp.message_handler(commands=["sendtochat"])
+@dp.message_handler(commands=["sendtochat", "s"])
 async def sendtochat_command(message: types.Message):
     try:
         arg = message.get_args().split(" ")
@@ -122,7 +122,7 @@ async def sendtochat_command(message: types.Message):
             raise Exception
     except Exception:
         await message.reply("*Ошибка: чат не существует или у вас в нём отсутствуют права администратора*",
-                            parse_mode=ParseMode.MARKDOWN)
+                            parse_mode=ParseMode.MARKDOWN, disable_notification=True)
 
 
 @dp.message_handler(content_types=['location'])
