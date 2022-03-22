@@ -3,7 +3,7 @@ import locale
 from datetime import datetime
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
-from aiogram.types import ParseMode, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
 from aiogram.utils import executor
 from tokens import BOT_TOKEN, OPEN_WEATHER_TOKEN
 
@@ -18,23 +18,26 @@ EMOJI = {
 }
 
 
-def get_base_kb():
-    return ReplyKeyboardMarkup(resize_keyboard=True).row(
-        KeyboardButton("/help"), KeyboardButton("/about")
-    )
+def get_base_kb(chat_type):
+    if chat_type == "private":
+        return ReplyKeyboardMarkup(resize_keyboard=True).row(
+            KeyboardButton("/help"), KeyboardButton("/about")
+        ).add(KeyboardButton("Отправить местоположение", request_location=True))
+    return ReplyKeyboardRemove()
 
 
-def get_weather(city):
+def get_weather(city, chat_type, lat=None, lon=None):
     try:
-        request_coords = requests.get(
-            f"https://api.openweathermap.org/geo/1.0/direct?q={city}, BY&limit=1&appid={OPEN_WEATHER_TOKEN}")
-        coords_data = request_coords.json()
-        if not coords_data:
+        if lat is None and lon is None:
             request_coords = requests.get(
-                f"https://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={OPEN_WEATHER_TOKEN}")
+                f"https://api.openweathermap.org/geo/1.0/direct?q={city}, BY&limit=1&appid={OPEN_WEATHER_TOKEN}")
             coords_data = request_coords.json()
-        lat = coords_data[0]["lat"]
-        lon = coords_data[0]["lon"]
+            if not coords_data:
+                request_coords = requests.get(
+                    f"https://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={OPEN_WEATHER_TOKEN}")
+                coords_data = request_coords.json()
+            lat = coords_data[0]["lat"]
+            lon = coords_data[0]["lon"]
         request_weather = requests.get(
             f"https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=minutely,hourly,alerts&appid={OPEN_WEATHER_TOKEN}&units=metric&lang=ru")
         weather_data = request_weather.json()
@@ -58,7 +61,10 @@ def get_weather(city):
                       f"Утро: {round(weather_data['daily'][i]['temp']['morn'])}°C, день: {round(weather_data['daily'][i]['temp']['day'])}°C, вечер: {round(weather_data['daily'][i]['temp']['eve'])}°C, ночь: {round(weather_data['daily'][i]['temp']['night'])}°C\n" \
                       f"Влажность: {weather_data['daily'][i]['humidity']}%\nСкорость ветра: {weather_data['daily'][i]['wind_speed']} м/c\n" \
                       f"{weather_desc}{weather_data['daily'][i]['weather'][0]['description'].capitalize()}\n"
-        return answer, get_base_kb().add(KeyboardButton(f"/weather {city}"))
+        kb = get_base_kb(chat_type)
+        if chat_type == "private" and city != "":
+            kb.add(KeyboardButton(f"/weather {city}"))
+        return answer, kb
     except Exception:
         return "*Ошибка!*\nПроверьте правильность ввода названия города!", None
 
@@ -68,14 +74,14 @@ dp = Dispatcher(bot)
 
 
 @dp.message_handler(commands=["start", "help"])
-async def start_command(message: types.Message):
+async def start_help_commands(message: types.Message):
     await message.reply(f"*Привет! Вот список моих команд:*\n/start\n/help\n/weather \[город]\n/w \[город]\n/about",
-                        reply_markup=get_base_kb() if message.get_command() == "/start" else None,
+                        reply_markup=get_base_kb(message.chat.type) if message.get_command() == "/start" else None,
                         parse_mode=ParseMode.MARKDOWN, disable_notification=True)
 
 
 @dp.message_handler(commands=["about"])
-async def start_command(message: types.Message):
+async def about_command(message: types.Message):
     await message.reply(
         "*Метеостанция №13 г. Любань* является самой старой метеостанцией Беларуси. Её история начинается 29 ноября "
         "1872 года, когда по указу императора Александра II в местечке Любань была открыта первая в Российской "
@@ -88,13 +94,43 @@ async def start_command(message: types.Message):
 
 
 @dp.message_handler(commands=["weather", "w"])
-async def start_command(message: types.Message):
+async def weather_command(message: types.Message):
     if message.get_args() == "":
-        await message.reply("*Ошибка!* Введите команду в формате /weather \[город] или /w \[город]",
+        await message.reply("*Ошибка! Введите команду в одном из форматов:*\n/weather \[город]\n/w \[город]",
                             parse_mode=ParseMode.MARKDOWN, disable_notification=True)
     else:
-        answer, kb = get_weather(message.get_args())
+        answer, kb = get_weather(message.get_args(), message.chat.type)
         await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=kb, disable_notification=True)
+
+
+@dp.message_handler(commands=["getchatid"])
+async def getchatid_command(message: types.Message):
+    await message.reply(message.chat.id)
+
+
+@dp.message_handler(commands=["sendtochat"])
+async def sendtochat_command(message: types.Message):
+    try:
+        arg = message.get_args().split(" ")
+        member = await bot.get_chat_member(int(arg[0]), message['from'].id)
+        if member['can_manage_chat']:
+            msg = ""
+            for i in range(1, len(arg)):
+                msg += arg[i] + ' '
+            await bot.send_message(int(arg[0]), msg)
+        else:
+            raise Exception
+    except Exception:
+        await message.reply("*Ошибка: чат не существует или у вас в нём отсутствуют права администратора*",
+                            parse_mode=ParseMode.MARKDOWN)
+
+
+@dp.message_handler(content_types=['location'])
+async def handle_location(message: types.Message):
+    lat = message.location.latitude
+    lon = message.location.longitude
+    answer, kb = get_weather("", message.chat.type, lat, lon)
+    await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=kb, disable_notification=True)
 
 
 if __name__ == '__main__':
