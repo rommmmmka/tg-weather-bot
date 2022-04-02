@@ -11,7 +11,7 @@ from aiogram.types import ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove, K
 from aiogram.utils import executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from tokens import BOT_TOKEN, OPEN_WEATHER_TOKEN, ADMIN_PASSWORD
+from tokens import BOT_TOKEN, OPEN_WEATHER_TOKEN, GEODB_TOKEN, ADMIN_PASSWORD
 
 EMOJI = {
     "Clear": "\u2600\uFE0F",
@@ -21,6 +21,11 @@ EMOJI = {
     "Thunderstorm": "\u26A1\uFE0F",
     "Snow": "\U0001F328\uFE0F",
     "Mist": "\U0001F32B\uFE0F",
+}
+GEODB_URL = "https://wft-geo-db.p.rapidapi.com/v1/geo/cities/"
+GEODB_HEADERS = {
+    "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
+    "X-RapidAPI-Key": GEODB_TOKEN
 }
 
 bot = Bot(token=BOT_TOKEN)
@@ -61,45 +66,52 @@ def get_base_kb(chat_type):
     return ReplyKeyboardRemove()
 
 
-def get_weather(chat_type, lat, lon, coords_data=None):
-    request_weather = requests.get(
-        f"https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=minutely,hourly,alerts&appid={OPEN_WEATHER_TOKEN}&units=metric&lang=ru")
-    weather_data = request_weather.json()
+def get_weather(lat, lon, city_name=""):
+    weather_data = requests.get(
+        f"https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=minutely,hourly,alerts&appid={OPEN_WEATHER_TOKEN}&units=metric&lang=ru").json()
     locale.setlocale(locale.LC_ALL, ("ru_RU", "UTF-8"))
     weather_desc = weather_data['current']['weather'][0]['main']
-    if weather_desc in EMOJI:
-        weather_desc = f"{EMOJI[weather_desc]} "
-    else:
-        weather_desc = ""
-    city = coords_data['name']
-    if "local_names" in coords_data and "ru" in coords_data['local_names']:
-        city = coords_data['local_names']['ru']
-    state = f"{coords_data['state']}, " if 'state' in coords_data else ""
-    city_name = "" if coords_data is None else f"{city}, {state}{coords_data['country']}"
-    answer = f"*{city_name}*\n\n" \
+    weather_desc = f"{EMOJI[weather_desc]} " if weather_desc in EMOJI else ""
+    if city_name != "":
+        city_name = f"*{city_name}*\n\n"
+    answer = f"{city_name}" \
              f"*Текущая погода:*\n" \
              f"{round(weather_data['current']['temp'])}°C (ощущается как {round(weather_data['current']['feels_like'])}°C)\n" \
              f"Влажность: {weather_data['current']['humidity']}%\nСкорость ветра: {weather_data['current']['wind_speed']} м/c\n" \
              f"{weather_desc}{weather_data['current']['weather'][0]['description'].capitalize()}\n"
     for i in range(3):
         weather_desc = weather_data['daily'][i]['weather'][0]['main']
-        if weather_desc in EMOJI:
-            weather_desc = f"{EMOJI[weather_desc]} "
-        else:
-            weather_desc = ""
+        weather_desc = f"{EMOJI[weather_desc]} " if weather_desc in EMOJI else ""
         answer += f"*Прогноз на {datetime.utcfromtimestamp(weather_data['daily'][i]['dt']).strftime('%e %B %Y')}:*\n" \
                   f"Утро: {round(weather_data['daily'][i]['temp']['morn'])}°C, день: {round(weather_data['daily'][i]['temp']['day'])}°C, вечер: {round(weather_data['daily'][i]['temp']['eve'])}°C, ночь: {round(weather_data['daily'][i]['temp']['night'])}°C\n" \
                   f"Влажность: {weather_data['daily'][i]['humidity']}%\nСкорость ветра: {weather_data['daily'][i]['wind_speed']} м/c\n" \
                   f"{weather_desc}{weather_data['daily'][i]['weather'][0]['description'].capitalize()}\n"
-    kb = get_base_kb(chat_type)
-    if chat_type == "private" and coords_data is not None:
-        kb.add(KeyboardButton(f"/weather {city_name}"))
-    return answer, kb
+    return answer
+
+
+def get_full_city_name(el):
+    country = "Беларусь" if el['country'] == "Белоруссия" else el['country']
+    return f"{el['city']}, {el['region']}, {country}"
 
 
 @dp.callback_query_handler(lambda c: c.data == "delete")
-async def process_callback_button1(callback_query: types.CallbackQuery):
+async def process_callback_button_delete(callback_query: types.CallbackQuery):
     await bot.delete_message(callback_query['message']['chat']['id'], callback_query['message']['message_id'])
+    await bot.answer_callback_query(callback_query.id)
+
+
+@dp.callback_query_handler()
+async def process_callback_button_weather(callback_query: types.CallbackQuery):
+    city_id = callback_query['data'][1:]
+    query = {"languageCode": "ru"}
+    coords_data = requests.request("GET", GEODB_URL + city_id, headers=GEODB_HEADERS, params=query).json()
+    lat = coords_data['data']['latitude']
+    lon = coords_data['data']['longitude']
+    answer = get_weather(lat, lon, get_full_city_name(coords_data['data']))
+    print(coords_data)
+    await bot.edit_message_text(answer, callback_query['message']['chat']['id'],
+                                callback_query['message']['message_id'], reply_markup=None,
+                                parse_mode=ParseMode.MARKDOWN)
     await bot.answer_callback_query(callback_query.id)
 
 
@@ -125,32 +137,45 @@ async def about_command(message: types.Message):
 
 @dp.message_handler(commands=["weather", "w"])
 async def weather_command(message: types.Message):
-    if message.get_args() == "":
+    city_query = message.get_args()
+    if city_query == "":
         print(f"{message['from']['username']} ({message['from']['id']}) не умеет вводить команду")
-        await message.reply("*Ошибка! Введите команду в одном из форматов:*\n/weather \[город]\n/w \[город]",
+        await message.reply("*Ошибка!* Введите команду в одном из форматов:\n/weather \[город]\n/w \[город]",
                             parse_mode=ParseMode.MARKDOWN, disable_notification=True)
     else:
-        try:
-            print(f"{message['from']['username']} ({message['from']['id']}) интересуется погодой")
-            city = message.get_args()
-            request_coords = requests.get(
-                f"https://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={OPEN_WEATHER_TOKEN}")
-            coords_data = request_coords.json()
-            lat = coords_data[0]["lat"]
-            lon = coords_data[0]["lon"]
-            answer, kb = get_weather(message.chat.type, lat, lon, coords_data[0])
-            await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=kb, disable_notification=True)
-        except Exception:
-            await message.reply("*Ошибка!*\nПроверьте правильность ввода названия города!",
-                                parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+        query = {
+            "limit": "5",
+            "namePrefix": city_query,
+            "sort": "-population",
+            "languageCode": "en" if city_query[0].lower() in "abcdefghijklmnopqrstuvwxyz" else "ru"
+        }
+        coords_data = requests.request("GET", GEODB_URL, headers=GEODB_HEADERS, params=query).json()
+        match len(coords_data['data']):
+            case 0:
+                await message.reply("*Ошибка!* Город с таким названием не найден.", parse_mode=ParseMode.MARKDOWN,
+                                    disable_notification=True)
+            case 1:
+                lat = coords_data['data'][0]['latitude']
+                lon = coords_data['data'][0]['longitude']
+                answer = get_weather(lat, lon, get_full_city_name(coords_data['data'][0]))
+                await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=get_base_kb(message.chat.type),
+                                    disable_notification=True)
+            case _:
+                answer = "*Найдено несколько результатов:*"
+                kb = InlineKeyboardMarkup()
+                for i, el in enumerate(coords_data['data']):
+                    answer += f"\n*{i + 1})* {get_full_city_name(el)}"
+                    kb.add(InlineKeyboardButton(str(i + 1), callback_data=f"w{el['id']}"))
+                await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=kb, disable_notification=True)
 
 
 @dp.message_handler(content_types=["location"])
 async def handle_location(message: types.Message):
     lat = message.location.latitude
     lon = message.location.longitude
-    answer, kb = get_weather(message.chat.type, lat, lon)
-    await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=kb, disable_notification=True)
+    answer = get_weather(lat, lon)
+    await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=get_base_kb(message.chat.type),
+                        disable_notification=True)
 
 
 @dp.message_handler(commands=["getchatid", "gcid"])
@@ -180,7 +205,7 @@ async def admin_command(message: types.Message):
         case ["logout" | "lo"]:
             await dp.current_state(user=message.from_user.id).reset_state()
             await message.reply("*Вы успешно вышли!*",
-                                parse_mode=ParseMode.MARKDOWN, isable_notification=True)
+                                parse_mode=ParseMode.MARKDOWN, disable_notification=True)
         case ["send" | "s", chat_id, *msg]:
             try:
                 await bot.send_message(chat_id, " ".join(msg))
