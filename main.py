@@ -1,9 +1,10 @@
+import os
 import requests
 import locale
-import matplotlib.pyplot as plt
 import sqlite3
-from io import BytesIO
 from datetime import datetime
+from io import BytesIO
+
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.types import ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, InlineKeyboardButton, \
@@ -11,6 +12,8 @@ from aiogram.types import ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove, K
 from aiogram.utils import executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from matplotlib.pyplot import plot, savefig
+
 from tokens import BOT_TOKEN, OPEN_WEATHER_TOKEN, GEODB_TOKEN, ADMIN_PASSWORD
 
 EMOJI = {
@@ -27,34 +30,86 @@ GEODB_HEADERS = {
     "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
     "X-RapidAPI-Key": GEODB_TOKEN
 }
+DATABASE = "db.sqlite"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 dp.middleware.setup(LoggingMiddleware())
-db = sqlite3.connect("db.sqlite")
+if not os.path.exists(DATABASE):
+    open(DATABASE, 'w')
+db = sqlite3.connect(DATABASE)
 cursor = db.cursor()
 
 
 def init_db():
-    cursor.execute("""CREATE TABLE IF NOT EXISTS cities (
-       city_id INT PRIMARY KEY,
-       city TEXT,
-       state TEXT,
-       country TEXT,
-       queries INT);
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cities (
+            city_id INT PRIMARY KEY,
+            city TEXT,
+            region TEXT,
+            country TEXT,
+            queries INT
+        );
     """)
-    cursor.execute("""CREATE TABLE IF NOT EXISTS countries (
-       city_id INT PRIMARY KEY,
-       city TEXT,
-       state TEXT,
-       country TEXT,
-       queries INT);
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS countries (
+            country_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            country TEXT,
+            queries INT
+        );
     """)
-    cursor.execute("""CREATE TABLE IF NOT EXISTS users (
-       user_id INT PRIMARY KEY,
-       name TEXT,
-       queries INT);
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INT PRIMARY KEY,
+            name TEXT,
+            login TEXT,
+            queries INT,
+            last_query_id INT
+        );
     """)
+    db.commit()
+
+
+def db_add_city(data):
+    cursor.execute(f"SELECT city_id FROM cities WHERE city_id = {data['id']}")
+    table_row = cursor.fetchall()
+    if not table_row:
+        country = "Беларусь" if data['country'] == "Белоруссия" else data['country']
+        cursor.execute(
+            f"INSERT INTO cities VALUES ({data['id']}, '{data['city']}', '{data['region']}', '{country}', 1)")
+    else:
+        cursor.execute(f"UPDATE cities SET queries = queries + 1 WHERE city_id = {data['id']}")
+    db.commit()
+
+
+def db_add_country(data):
+    country = "Беларусь" if data['country'] == "Белоруссия" else data['country']
+    cursor.execute(f"SELECT country_id FROM countries WHERE country = '{country}'")
+    table_row = cursor.fetchall()
+    if not table_row:
+        cursor.execute(f"INSERT INTO countries VALUES (NULL, '{country}', 1)")
+    else:
+        cursor.execute(f"UPDATE countries SET queries = queries + 1 WHERE country = '{country}'")
+    db.commit()
+
+
+def db_add_user(user_data, city_data):
+    cursor.execute(f"SELECT user_id FROM users WHERE user_id = {user_data['id']}")
+    table_row = cursor.fetchall()
+    if not table_row:
+        cursor.execute(f"""
+            INSERT INTO users
+            VALUES ({user_data['id']}, '{user_data['first_name']}', '{user_data['username']}', 1, {city_data['id']})
+        """)
+    else:
+        cursor.execute(f"""
+            UPDATE users
+            SET name = '{user_data['first_name']}',
+                login = '{user_data['username']}',
+                queries = queries + 1,
+                last_query_id = {city_data['id']}
+            WHERE user_id = {user_data['id']}
+        """)
     db.commit()
 
 
@@ -82,7 +137,7 @@ def get_weather(lat, lon, city_name=""):
     for i in range(3):
         weather_desc = weather_data['daily'][i]['weather'][0]['main']
         weather_desc = f"{EMOJI[weather_desc]} " if weather_desc in EMOJI else ""
-        answer += f"*Прогноз на {datetime.utcfromtimestamp(weather_data['daily'][i]['dt']).strftime('%e %B %Y')}:*\n" \
+        answer += f"*Прогноз на {datetime.utcfromtimestamp(weather_data['daily'][i]['dt']).strftime('%e %B %Y').strip()}:*\n" \
                   f"Утро: {round(weather_data['daily'][i]['temp']['morn'])}°C, день: {round(weather_data['daily'][i]['temp']['day'])}°C, вечер: {round(weather_data['daily'][i]['temp']['eve'])}°C, ночь: {round(weather_data['daily'][i]['temp']['night'])}°C\n" \
                   f"Влажность: {weather_data['daily'][i]['humidity']}%\nСкорость ветра: {weather_data['daily'][i]['wind_speed']} м/c\n" \
                   f"{weather_desc}{weather_data['daily'][i]['weather'][0]['description'].capitalize()}\n"
@@ -107,11 +162,16 @@ async def process_callback_button_weather(callback_query: types.CallbackQuery):
     coords_data = requests.request("GET", GEODB_URL + city_id, headers=GEODB_HEADERS, params=query).json()
     lat = coords_data['data']['latitude']
     lon = coords_data['data']['longitude']
+    db_add_city(coords_data['data'])
+    db_add_country(coords_data['data'])
+    db_add_user(callback_query['from'], coords_data['data'])
     answer = get_weather(lat, lon, get_full_city_name(coords_data['data']))
-    print(coords_data)
-    await bot.edit_message_text(answer, callback_query['message']['chat']['id'],
-                                callback_query['message']['message_id'], reply_markup=None,
-                                parse_mode=ParseMode.MARKDOWN)
+    try:
+        await bot.edit_message_text(answer, callback_query['message']['chat']['id'],
+                                    callback_query['message']['message_id'], reply_markup=None,
+                                    parse_mode=ParseMode.MARKDOWN)
+    except Exception:
+        pass
     await bot.answer_callback_query(callback_query.id)
 
 
@@ -146,6 +206,7 @@ async def weather_command(message: types.Message):
         query = {
             "limit": "5",
             "namePrefix": city_query,
+            "types": "CITY",
             "sort": "-population",
             "languageCode": "en" if city_query[0].lower() in "abcdefghijklmnopqrstuvwxyz" else "ru"
         }
@@ -157,10 +218,14 @@ async def weather_command(message: types.Message):
             case 1:
                 lat = coords_data['data'][0]['latitude']
                 lon = coords_data['data'][0]['longitude']
+                db_add_city(coords_data['data'][0])
+                db_add_country(coords_data['data'][0])
+                db_add_user(message['from'], coords_data['data'][0])
                 answer = get_weather(lat, lon, get_full_city_name(coords_data['data'][0]))
                 await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=get_base_kb(message.chat.type),
                                     disable_notification=True)
             case _:
+                print(coords_data['data'])
                 answer = "*Найдено несколько результатов:*"
                 kb = InlineKeyboardMarkup()
                 for i, el in enumerate(coords_data['data']):
