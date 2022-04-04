@@ -5,6 +5,7 @@ import sqlite3
 from datetime import datetime
 from io import BytesIO
 
+import matplotlib.pyplot as plt
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.types import ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, InlineKeyboardButton, \
@@ -12,7 +13,6 @@ from aiogram.types import ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove, K
 from aiogram.utils import executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from matplotlib.pyplot import plot, savefig
 
 from tokens import BOT_TOKEN, OPEN_WEATHER_TOKEN, GEODB_TOKEN, ADMIN_PASSWORD
 
@@ -149,6 +149,29 @@ def get_full_city_name(el):
     return f"{el['city']}, {el['region']}, {country}"
 
 
+def get_admin_help():
+    return f"*Синтаксис команд администратора:*\n" \
+           f"/admin \[команда] \[аргументы]\n" \
+           f"/a \[команда] \[аргументы]\n\n" \
+           f"*Список команд:*\n" \
+           f"login (l) \[пароль] – вход в аккаунт администратора\n" \
+           f"logout (lo) – выход из аккаунта администратора\n" \
+           f"help (h) – справка по командам\n" \
+           f"send (s) \[id чата] \[сообщение] – отправить сообщение от имени бота\n" \
+           f"stats (st) \[cities/countries/users] – статистика бота"
+
+
+def draw_hist(x, y, ticks_max):
+    plt.bar(x, y)
+    plt.yticks(range(ticks_max + 1))
+    plt.subplots_adjust(bottom=0.15)
+    img = BytesIO()
+    plt.savefig(img, format="png")
+    plt.close()
+    img.seek(0)
+    return img
+
+
 @dp.callback_query_handler(lambda c: c.data == "delete")
 async def process_callback_button_delete(callback_query: types.CallbackQuery):
     await bot.delete_message(callback_query['message']['chat']['id'], callback_query['message']['message_id'])
@@ -177,9 +200,13 @@ async def process_callback_button_weather(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=["start", "help"])
 async def start_help_commands(message: types.Message):
-    await message.reply(f"*Привет! Вот список моих команд:*\n/start\n/help\n/weather \[город]\n/w \[город]\n/about",
-                        reply_markup=get_base_kb(message.chat.type) if message.get_command() == "/start" else None,
-                        parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+    await message.reply(f"*Привет! Вот список моих команд:*\n"
+                        f"/start или /help – справка по командам\n"
+                        f"/about – история метеостанции\n"
+                        f"/weather \[город] или /w \[город] – информация о погоде\n"
+                        f"/admin или /a - панель администратора",
+                        reply_markup=get_base_kb(message.chat.type), parse_mode=ParseMode.MARKDOWN,
+                        disable_notification=True)
 
 
 @dp.message_handler(commands=["about"])
@@ -271,16 +298,84 @@ async def admin_command(message: types.Message):
             await dp.current_state(user=message.from_user.id).reset_state()
             await message.reply("*Вы успешно вышли!*",
                                 parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+        case ["help" | "h" | ""]:
+            await message.reply(get_admin_help(), parse_mode=ParseMode.MARKDOWN, disable_notification=True)
         case ["send" | "s", chat_id, *msg]:
             try:
                 await bot.send_message(chat_id, " ".join(msg))
             except Exception:
                 await message.reply(f"*Возникла ошибка при отправке!* Возможно, такого чата не существует.",
                                     parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+        case ["stats" | "st", *args]:
+            info = args[0] if args else ""
+            match info:
+                case "cities":
+                    cursor.execute("SELECT * FROM cities ORDER BY -queries LIMIT 10;")
+                    data = cursor.fetchall()
+                    if not data:
+                        await message.reply(f"*Ошибка!* Данные отсутствуют.", parse_mode=ParseMode.MARKDOWN,
+                                            disable_notification=True)
+                        return
+                    caption = f"*Топ {len(data)} самых запрашиваемых городов:*\n"
+                    cities = []
+                    queries = []
+                    for i, el in enumerate(data):
+                        cities.append(f"{el[1]}\n{el[2]}\n{el[3]}")
+                        queries.append(el[4])
+                        caption += f"{i + 1}) {el[1]}, {el[2]}, {el[3]} ({el[4]})\n"
+                    img = draw_hist(cities, queries, data[0][4])
+                    await bot.send_photo(message.chat.id, img, caption, reply_to_message_id=message.message_id,
+                                         parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+                case "countries":
+                    cursor.execute("SELECT * FROM countries ORDER BY -queries LIMIT 10;")
+                    data = cursor.fetchall()
+                    if not data:
+                        await message.reply(f"*Ошибка!* Данные отсутствуют.", parse_mode=ParseMode.MARKDOWN,
+                                            disable_notification=True)
+                        return
+                    caption = f"*Топ {len(data)} самых запрашиваемых стран:*\n"
+                    countries = []
+                    queries = []
+                    for i in data:
+                        countries.append(i[1])
+                        queries.append(i[2])
+                        caption += f"{i[0]}) {i[1]} ({i[2]})\n"
+                    img = draw_hist(countries, queries, data[0][2])
+                    await bot.send_photo(message.chat.id, img, caption, reply_to_message_id=message.message_id,
+                                         parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+                case "users":
+                    cursor.execute("SELECT * FROM users ORDER BY -queries LIMIT 50;")
+                    data = cursor.fetchall()
+                    if not data:
+                        await message.reply(f"*Ошибка!* Данные отсутствуют.", parse_mode=ParseMode.MARKDOWN,
+                                            disable_notification=True)
+                        return
+                    caption = f"<b>Топ {len(data)} самых активных пользователей:</b>\n"
+                    users = []
+                    queries = []
+                    for i, el in enumerate(data):
+                        users.append(f"{el[1]}\n@{el[2]}")
+                        queries.append(el[3])
+                        cursor.execute(f"SELECT * FROM cities WHERE city_id = {el[4]};")
+                        last_query = cursor.fetchall()
+                        caption += f"{i + 1}) {el[1]}, @{el[2]}\n" \
+                                   f"    ID чата: {el[0]}\n" \
+                                   f"    Количество запросов: {el[3]}\n" \
+                                   f"    Последний запрос: {last_query[0][1]}, {last_query[0][2]}, {last_query[0][3]}\n"
+                    print(caption)
+                    print(message)
+                    await message.reply(caption, parse_mode=ParseMode.HTML, disable_notification=True)
+                case _:
+                    await message.reply(f"*Синтаксис команды:*\n"
+                                        f"/admin (a) stats (st) \[параметр]\n"
+                                        f"*Возможные параметры:*\n"
+                                        f"cities – статистика по городам\n"
+                                        f"countries – статистика по странам\n"
+                                        f"users – статистика по пользователям", parse_mode=ParseMode.MARKDOWN,
+                                        disable_notification=True)
         case _:
-            print(message.get_args().split(" "))
-            await message.reply("*Ошибка!* Неизвестная команда.",
-                                parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+            await message.reply("*Ошибка!* Неизвестная команда.", parse_mode=ParseMode.MARKDOWN,
+                                disable_notification=True)
 
 
 @dp.message_handler(commands=["admin", "a"])
@@ -293,6 +388,8 @@ async def admin_command(message: types.Message):
             await message.delete()
             await bot.send_message(message.chat.id, "*Вы успешно вошли*", parse_mode=ParseMode.MARKDOWN,
                                    disable_notification=True)
+        case ["help" | "h" | ""]:
+            await message.reply(get_admin_help(), parse_mode=ParseMode.MARKDOWN, disable_notification=True)
         case _:
             await message.delete()
             await bot.send_message(message.chat.id, "*Ошибка входа!*", parse_mode=ParseMode.MARKDOWN,
