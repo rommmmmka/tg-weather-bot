@@ -162,6 +162,7 @@ def get_admin_help():
 
 
 def draw_hist(x, y, ticks_max):
+    plt.rc('xtick', labelsize=6)
     plt.bar(x, y)
     plt.yticks(range(ticks_max + 1))
     plt.subplots_adjust(bottom=0.15)
