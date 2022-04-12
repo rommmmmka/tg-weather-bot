@@ -1,4 +1,5 @@
 import os
+import random
 import requests
 import locale
 import sqlite3
@@ -25,6 +26,12 @@ EMOJI = {
     "Snow": "\U0001F328\uFE0F",
     "Mist": "\U0001F32B\uFE0F",
 }
+EMOJI_TTT = {
+    "Cross": "\u274C",
+    "Zero": "\u2B55",
+    "Empty": "\u2B1C",
+}
+TTT_WINNING_PATTERNS = []
 GEODB_URL = "https://wft-geo-db.p.rapidapi.com/v1/geo/cities/"
 GEODB_HEADERS = {
     "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
@@ -236,7 +243,7 @@ async def process_callback_button_delete(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
 
 
-@dp.callback_query_handler()
+@dp.callback_query_handler(lambda c: len(c.data) > 0 and c.data[0] == "w")
 async def process_callback_button_weather(callback_query: types.CallbackQuery):
     city_id = callback_query['data'][1:]
     query = {"languageCode": "ru"}
@@ -256,6 +263,147 @@ async def process_callback_button_weather(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
 
 
+def init_ttt():
+    TTT_WINNING_PATTERNS.append([[1, 1, 1], [0, 0, 0], [0, 0, 0]])
+    TTT_WINNING_PATTERNS.append([[0, 0, 0], [1, 1, 1], [0, 0, 0]])
+    TTT_WINNING_PATTERNS.append([[0, 0, 0], [0, 0, 0], [1, 1, 1]])
+    TTT_WINNING_PATTERNS.append([[1, 0, 0], [1, 0, 0], [1, 0, 0]])
+    TTT_WINNING_PATTERNS.append([[0, 1, 0], [0, 1, 0], [0, 1, 0]])
+    TTT_WINNING_PATTERNS.append([[0, 0, 1], [0, 0, 1], [0, 0, 1]])
+    TTT_WINNING_PATTERNS.append([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    TTT_WINNING_PATTERNS.append([[0, 0, 1], [0, 1, 0], [1, 0, 0]])
+
+
+def ttt_check_win(kb):
+    for player in [EMOJI_TTT['Cross'], EMOJI_TTT['Zero']]:
+        for pattern in TTT_WINNING_PATTERNS:
+            win = True
+            for i in range(3):
+                for j in range(3):
+                    if pattern[i][j] == 0:
+                        continue
+                    if kb[i][j]['text'] != player:
+                        win = False
+                        break
+                if not win:
+                    break
+            if win:
+                return player
+    for i in range(3):
+        for j in range(3):
+            if kb[i][j]['text'] == EMOJI_TTT['Empty']:
+                return 0
+    return -1
+
+
+def ttt_place_zero(kb):
+    patterns = TTT_WINNING_PATTERNS
+    random.shuffle(patterns)
+    place_coords = [[-1, -1], [-1, -1], [-1, -1], [-1, -1]]
+
+    base_place_coords = []
+    for i in range(3):
+        for j in range(3):
+            if kb[i][j]['text'] == EMOJI_TTT['Empty']:
+                base_place_coords.append([i, j])
+    if not base_place_coords:
+        base_place_coords.append([-1, -1])
+    place_coords.append(random.choice(base_place_coords))
+
+    for pattern in patterns:
+        can_place = True
+        curr_place_coords = []
+        for i in range(3):
+            for j in range(3):
+                if pattern[i][j] == 0:
+                    continue
+                if kb[i][j]['text'] == EMOJI_TTT['Cross']:
+                    can_place = False
+                    break
+                if kb[i][j]['text'] == EMOJI_TTT['Empty']:
+                    curr_place_coords.append([i, j])
+            if not can_place:
+                break
+        if can_place:
+            curr_choice = random.choice(curr_place_coords)
+            place_coords[len(curr_place_coords)] = curr_choice
+
+    for pattern in patterns:
+        need_to_place = True
+        curr_place_coords = []
+        for i in range(3):
+            for j in range(3):
+                if pattern[i][j] == 0:
+                    continue
+                if kb[i][j]['text'] == EMOJI_TTT['Zero']:
+                    need_to_place = False
+                    break
+                if kb[i][j]['text'] == EMOJI_TTT['Empty']:
+                    curr_place_coords.append([i, j])
+            if not need_to_place:
+                break
+        if need_to_place and len(curr_place_coords) == 1:
+            place_coords[0] = curr_place_coords[0]
+
+    place_coords[0], place_coords[1] = place_coords[1], place_coords[0]
+    for coords in place_coords:
+        if coords == [-1, -1]:
+            continue
+        kb[coords[0]][coords[1]]['text'] = EMOJI_TTT['Zero']
+        break
+    return kb
+
+
+def kill_callback_queries(kb):
+    for i in range(3):
+        for j in range(3):
+            kb['inline_keyboard'][i][j]['callback_data'] = "killed_callback_query"
+    return kb
+
+
+@dp.callback_query_handler(lambda c: len(c.data) > 0 and c.data[0] == "t")
+async def process_callback_button_ttt(callback_query: types.CallbackQuery):
+    global EMOJI_TTT
+    try:
+        i = int(callback_query.data[1])
+        j = int(callback_query.data[2])
+        kb = callback_query['message']['reply_markup']
+        if kb['inline_keyboard'][i][j]['text'] != EMOJI_TTT['Empty']:
+            raise Exception
+        else:
+            kb['inline_keyboard'][i][j]['text'] = EMOJI_TTT['Cross']
+            winner = ttt_check_win(kb['inline_keyboard'])
+            if winner == 0 or winner == -1:
+                kb['inline_keyboard'] = ttt_place_zero(kb['inline_keyboard'])
+                winner = ttt_check_win(kb['inline_keyboard'])
+            match winner:
+                case 0:
+                    await bot.edit_message_text("*Крестики нолики*", callback_query['message']['chat']['id'],
+                                                callback_query['message']['message_id'], reply_markup=kb,
+                                                parse_mode=ParseMode.MARKDOWN)
+                case -1:
+                    kb = kill_callback_queries(kb)
+                    await bot.edit_message_text("*Крестики нолики*\nНичья!", callback_query['message']['chat']['id'],
+                                                callback_query['message']['message_id'], reply_markup=kb,
+                                                parse_mode=ParseMode.MARKDOWN)
+                case w:
+                    kb = kill_callback_queries(kb)
+                    await bot.edit_message_text(
+                        f"*Крестики нолики*\nВы {'победили' if w == EMOJI_TTT['Cross'] else 'проиграли'}!",
+                        callback_query['message']['chat']['id'],
+                        callback_query['message']['message_id'], reply_markup=kb,
+                        parse_mode=ParseMode.MARKDOWN)
+
+    except Exception:
+        pass
+    await bot.answer_callback_query(callback_query.id)
+
+
+@dp.callback_query_handler(lambda c: c.data[0] == "killed_callback_query")
+async def process_callback_killed_ttt(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+
+
 @dp.message_handler(commands=["start", "help"])
 async def start_help_commands(message: types.Message):
     await message.reply(
@@ -263,6 +411,7 @@ async def start_help_commands(message: types.Message):
         f"/start или /help – справка по командам\n"
         f"/about – история метеостанции\n"
         f"/weather \[город] или /w \[город] – информация о погоде\n"
+        f"/tiktaktoe или /ttt - крестики-нолики\n"
         f"/admin или /a - панель администратора",
         reply_markup=get_base_kb(message.chat.type), parse_mode=ParseMode.MARKDOWN, disable_notification=True)
 
@@ -309,7 +458,6 @@ async def weather_command(message: types.Message):
             await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=get_base_kb(message.chat.type),
                                 disable_notification=True)
         case _:
-            print(coords_data['data'])
             answer = "*Найдено несколько результатов:*"
             kb = InlineKeyboardMarkup()
             for i, el in enumerate(coords_data['data']):
@@ -356,7 +504,6 @@ async def admin_command(message: types.Message):
                                     parse_mode=ParseMode.MARKDOWN, disable_notification=True)
         case ["remove" | "rm", link]:
             link = link.split('/')
-            print(link)
             try:
                 await bot.delete_message(chat_id=f"-100{link[4]}", message_id=link[5])
             except Exception:
@@ -410,6 +557,18 @@ async def admin_command(message: types.Message):
                                    disable_notification=True)
 
 
+@dp.message_handler(commands=["tiktaktoe", "ttt"])
+async def tiktaktoe_command(message: types.Message):
+    print(1)
+    kb = InlineKeyboardMarkup()
+    for i in range(3):
+        btns = [InlineKeyboardButton(EMOJI_TTT['Empty'], callback_data=f"t{i}{j}") for j in range(3)]
+        kb = kb.row(btns[0], btns[1], btns[2])
+    await message.reply("*Крестики нолики*", parse_mode=ParseMode.MARKDOWN, reply_markup=kb,
+                        disable_notification=True)
+
+
 if __name__ == "__main__":
     init_db()
+    init_ttt()
     executor.start_polling(dp)
