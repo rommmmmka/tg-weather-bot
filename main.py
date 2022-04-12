@@ -26,12 +26,12 @@ EMOJI = {
     "Snow": "\U0001F328\uFE0F",
     "Mist": "\U0001F32B\uFE0F",
 }
-EMOJI_TTT = {
+TTT_EMOJI = {
     "Cross": "\u274C",
     "Zero": "\u2B55",
     "Empty": "\u2B1C",
 }
-TTT_WINNING_PATTERNS = []
+TTT_WINNING_PATTERNS = [[[0, 0, 0], [0, 0, 0], [0, 0, 0]] for i in range(8)]
 GEODB_URL = "https://wft-geo-db.p.rapidapi.com/v1/geo/cities/"
 GEODB_HEADERS = {
     "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
@@ -264,18 +264,16 @@ async def process_callback_button_weather(callback_query: types.CallbackQuery):
 
 
 def init_ttt():
-    TTT_WINNING_PATTERNS.append([[1, 1, 1], [0, 0, 0], [0, 0, 0]])
-    TTT_WINNING_PATTERNS.append([[0, 0, 0], [1, 1, 1], [0, 0, 0]])
-    TTT_WINNING_PATTERNS.append([[0, 0, 0], [0, 0, 0], [1, 1, 1]])
-    TTT_WINNING_PATTERNS.append([[1, 0, 0], [1, 0, 0], [1, 0, 0]])
-    TTT_WINNING_PATTERNS.append([[0, 1, 0], [0, 1, 0], [0, 1, 0]])
-    TTT_WINNING_PATTERNS.append([[0, 0, 1], [0, 0, 1], [0, 0, 1]])
-    TTT_WINNING_PATTERNS.append([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    TTT_WINNING_PATTERNS.append([[0, 0, 1], [0, 1, 0], [1, 0, 0]])
+    for i in range(3):
+        for j in range(3):
+            TTT_WINNING_PATTERNS[i][i][j] = 1
+            TTT_WINNING_PATTERNS[i + 3][j][i] = 1
+        TTT_WINNING_PATTERNS[6][i][i] = 1
+        TTT_WINNING_PATTERNS[7][2 - i][i] = 1
 
 
 def ttt_check_win(kb):
-    for player in [EMOJI_TTT['Cross'], EMOJI_TTT['Zero']]:
+    for player in [TTT_EMOJI['Cross'], TTT_EMOJI['Zero']]:
         for pattern in TTT_WINNING_PATTERNS:
             win = True
             for i in range(3):
@@ -291,7 +289,7 @@ def ttt_check_win(kb):
                 return player
     for i in range(3):
         for j in range(3):
-            if kb[i][j]['text'] == EMOJI_TTT['Empty']:
+            if kb[i][j]['text'] == TTT_EMOJI['Empty']:
                 return 0
     return -1
 
@@ -304,7 +302,7 @@ def ttt_place_zero(kb):
     base_place_coords = []
     for i in range(3):
         for j in range(3):
-            if kb[i][j]['text'] == EMOJI_TTT['Empty']:
+            if kb[i][j]['text'] == TTT_EMOJI['Empty']:
                 base_place_coords.append([i, j])
     if not base_place_coords:
         base_place_coords.append([-1, -1])
@@ -317,10 +315,10 @@ def ttt_place_zero(kb):
             for j in range(3):
                 if pattern[i][j] == 0:
                     continue
-                if kb[i][j]['text'] == EMOJI_TTT['Cross']:
+                if kb[i][j]['text'] == TTT_EMOJI['Cross']:
                     can_place = False
                     break
-                if kb[i][j]['text'] == EMOJI_TTT['Empty']:
+                if kb[i][j]['text'] == TTT_EMOJI['Empty']:
                     curr_place_coords.append([i, j])
             if not can_place:
                 break
@@ -335,10 +333,10 @@ def ttt_place_zero(kb):
             for j in range(3):
                 if pattern[i][j] == 0:
                     continue
-                if kb[i][j]['text'] == EMOJI_TTT['Zero']:
+                if kb[i][j]['text'] == TTT_EMOJI['Zero']:
                     need_to_place = False
                     break
-                if kb[i][j]['text'] == EMOJI_TTT['Empty']:
+                if kb[i][j]['text'] == TTT_EMOJI['Empty']:
                     curr_place_coords.append([i, j])
             if not need_to_place:
                 break
@@ -349,7 +347,7 @@ def ttt_place_zero(kb):
     for coords in place_coords:
         if coords == [-1, -1]:
             continue
-        kb[coords[0]][coords[1]]['text'] = EMOJI_TTT['Zero']
+        kb[coords[0]][coords[1]]['text'] = TTT_EMOJI['Zero']
         break
     return kb
 
@@ -363,15 +361,15 @@ def kill_callback_queries(kb):
 
 @dp.callback_query_handler(lambda c: len(c.data) > 0 and c.data[0] == "t")
 async def process_callback_button_ttt(callback_query: types.CallbackQuery):
-    global EMOJI_TTT
+    global TTT_EMOJI
     try:
         i = int(callback_query.data[1])
         j = int(callback_query.data[2])
         kb = callback_query['message']['reply_markup']
-        if kb['inline_keyboard'][i][j]['text'] != EMOJI_TTT['Empty']:
+        if kb['inline_keyboard'][i][j]['text'] != TTT_EMOJI['Empty']:
             raise Exception
         else:
-            kb['inline_keyboard'][i][j]['text'] = EMOJI_TTT['Cross']
+            kb['inline_keyboard'][i][j]['text'] = TTT_EMOJI['Cross']
             winner = ttt_check_win(kb['inline_keyboard'])
             if winner == 0 or winner == -1:
                 kb['inline_keyboard'] = ttt_place_zero(kb['inline_keyboard'])
@@ -389,7 +387,7 @@ async def process_callback_button_ttt(callback_query: types.CallbackQuery):
                 case w:
                     kb = kill_callback_queries(kb)
                     await bot.edit_message_text(
-                        f"*Крестики нолики*\nВы {'победили' if w == EMOJI_TTT['Cross'] else 'проиграли'}!",
+                        f"*Крестики нолики*\nВы {'победили' if w == TTT_EMOJI['Cross'] else 'проиграли'}!",
                         callback_query['message']['chat']['id'],
                         callback_query['message']['message_id'], reply_markup=kb,
                         parse_mode=ParseMode.MARKDOWN)
@@ -562,7 +560,7 @@ async def tiktaktoe_command(message: types.Message):
     print(1)
     kb = InlineKeyboardMarkup()
     for i in range(3):
-        btns = [InlineKeyboardButton(EMOJI_TTT['Empty'], callback_data=f"t{i}{j}") for j in range(3)]
+        btns = [InlineKeyboardButton(TTT_EMOJI['Empty'], callback_data=f"t{i}{j}") for j in range(3)]
         kb = kb.row(btns[0], btns[1], btns[2])
     await message.reply("*Крестики нолики*", parse_mode=ParseMode.MARKDOWN, reply_markup=kb,
                         disable_notification=True)
