@@ -173,7 +173,7 @@ def draw_hist(x, y, ticks_max):
     return img
 
 
-def get_cities_stats(message: types.Message):
+async def get_cities_stats(message: types.Message):
     cursor.execute("SELECT * FROM cities ORDER BY -queries LIMIT 10;")
     data = cursor.fetchall()
     if not data:
@@ -191,7 +191,7 @@ def get_cities_stats(message: types.Message):
                          parse_mode=ParseMode.MARKDOWN, disable_notification=True)
 
 
-def get_countries_stats(message: types.Message):
+async def get_countries_stats(message: types.Message):
     cursor.execute("SELECT * FROM countries ORDER BY -queries LIMIT 10;")
     data = cursor.fetchall()
     if not data:
@@ -209,7 +209,7 @@ def get_countries_stats(message: types.Message):
                          parse_mode=ParseMode.MARKDOWN, disable_notification=True)
 
 
-def get_users_stats(message: types.Message):
+async def get_users_stats(message: types.Message):
     cursor.execute("SELECT * FROM users ORDER BY -queries LIMIT 50;")
     data = cursor.fetchall()
     if not data:
@@ -366,11 +366,11 @@ async def admin_command(message: types.Message):
             info = args[0] if args else ""
             match info:
                 case "cities":
-                    get_cities_stats(message)
+                    await get_cities_stats(message)
                 case "countries":
-                    get_countries_stats(message)
+                    await get_countries_stats(message)
                 case "users":
-                    get_users_stats(message)
+                    await get_users_stats(message)
                 case "clear":
                     cursor.execute("DELETE FROM cities;")
                     cursor.execute("DELETE FROM countries;")
