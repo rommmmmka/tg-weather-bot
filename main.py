@@ -121,13 +121,13 @@ def get_base_kb(chat_type):
     return ReplyKeyboardRemove()
 
 
-def get_weather(lat, lon, city_name=""):
+def get_weather(lat, lon, city_name=None):
     weather_data = requests.get(
         f"https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=minutely,hourly,alerts&appid={OPEN_WEATHER_TOKEN}&units=metric&lang=ru").json()
     locale.setlocale(locale.LC_ALL, ("ru_RU", "UTF-8"))
     weather_desc = weather_data['current']['weather'][0]['main']
     weather_desc = f"{EMOJI[weather_desc]} " if weather_desc in EMOJI else ""
-    if city_name != "":
+    if city_name is not None:
         city_name = f"*{city_name}*\n\n"
     answer = f"{city_name}" \
              f"*Текущая погода:*\n" \
@@ -173,6 +173,63 @@ def draw_hist(x, y, ticks_max):
     return img
 
 
+def get_cities_stats(message: types.Message):
+    cursor.execute("SELECT * FROM cities ORDER BY -queries LIMIT 10;")
+    data = cursor.fetchall()
+    if not data:
+        await message.reply(f"*Данные отсутствуют!*", parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+        return
+    caption = f"*Топ {len(data)} самых запрашиваемых городов:*\n"
+    cities = []
+    queries = []
+    for i, el in enumerate(data):
+        cities.append(f"{el[1]}\n{el[2]}\n{el[3]}")
+        queries.append(el[4])
+        caption += f"{i + 1}) {el[1]}, {el[2]}, {el[3]} ({el[4]})\n"
+    img = draw_hist(cities, queries, data[0][4])
+    await bot.send_photo(message.chat.id, img, caption, reply_to_message_id=message.message_id,
+                         parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+
+
+def get_countries_stats(message: types.Message):
+    cursor.execute("SELECT * FROM countries ORDER BY -queries LIMIT 10;")
+    data = cursor.fetchall()
+    if not data:
+        await message.reply(f"*Данные отсутствуют!*", parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+        return
+    caption = f"*Топ {len(data)} самых запрашиваемых стран:*\n"
+    countries = []
+    queries = []
+    for i in data:
+        countries.append(i[1])
+        queries.append(i[2])
+        caption += f"{i[0]}) {i[1]} ({i[2]})\n"
+    img = draw_hist(countries, queries, data[0][2])
+    await bot.send_photo(message.chat.id, img, caption, reply_to_message_id=message.message_id,
+                         parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+
+
+def get_users_stats(message: types.Message):
+    cursor.execute("SELECT * FROM users ORDER BY -queries LIMIT 50;")
+    data = cursor.fetchall()
+    if not data:
+        await message.reply(f"*Данные отсутствуют!*", parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+        return
+    caption = f"<b>Топ {len(data)} самых активных пользователей:</b>\n"
+    users = []
+    queries = []
+    for i, el in enumerate(data):
+        users.append(f"{el[1]}\n@{el[2]}")
+        queries.append(el[3])
+        cursor.execute(f"SELECT * FROM cities WHERE city_id = {el[4]};")
+        last_query = cursor.fetchall()
+        caption += f"{i + 1}) {el[1]}, @{el[2]}\n" \
+                   f"    ID чата: {el[0]}\n" \
+                   f"    Количество запросов: {el[3]}\n" \
+                   f"    Последний запрос: {last_query[0][1]}, {last_query[0][2]}, {last_query[0][3]}\n"
+    await message.reply(caption, parse_mode=ParseMode.HTML, disable_notification=True)
+
+
 @dp.callback_query_handler(lambda c: c.data == "delete")
 async def process_callback_button_delete(callback_query: types.CallbackQuery):
     await bot.delete_message(callback_query['message']['chat']['id'], callback_query['message']['message_id'])
@@ -201,13 +258,13 @@ async def process_callback_button_weather(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=["start", "help"])
 async def start_help_commands(message: types.Message):
-    await message.reply(f"*Привет! Вот список моих команд:*\n"
-                        f"/start или /help – справка по командам\n"
-                        f"/about – история метеостанции\n"
-                        f"/weather \[город] или /w \[город] – информация о погоде\n"
-                        f"/admin или /a - панель администратора",
-                        reply_markup=get_base_kb(message.chat.type), parse_mode=ParseMode.MARKDOWN,
-                        disable_notification=True)
+    await message.reply(
+        f"*Привет! Вот список моих команд:*\n"
+        f"/start или /help – справка по командам\n"
+        f"/about – история метеостанции\n"
+        f"/weather \[город] или /w \[город] – информация о погоде\n"
+        f"/admin или /a - панель администратора",
+        reply_markup=get_base_kb(message.chat.type), parse_mode=ParseMode.MARKDOWN, disable_notification=True)
 
 
 @dp.message_handler(commands=["about"])
@@ -227,39 +284,38 @@ async def about_command(message: types.Message):
 async def weather_command(message: types.Message):
     city_query = message.get_args()
     if city_query == "":
-        print(f"{message['from']['username']} ({message['from']['id']}) не умеет вводить команду")
         await message.reply("*Ошибка!* Введите команду в одном из форматов:\n/weather \[город]\n/w \[город]",
                             parse_mode=ParseMode.MARKDOWN, disable_notification=True)
-    else:
-        query = {
-            "limit": "5",
-            "namePrefix": city_query,
-            "types": "CITY",
-            "sort": "-population",
-            "languageCode": "en" if city_query[0].lower() in "abcdefghijklmnopqrstuvwxyz" else "ru"
-        }
-        coords_data = requests.request("GET", GEODB_URL, headers=GEODB_HEADERS, params=query).json()
-        match len(coords_data['data']):
-            case 0:
-                await message.reply("*Ошибка!* Город с таким названием не найден.", parse_mode=ParseMode.MARKDOWN,
-                                    disable_notification=True)
-            case 1:
-                lat = coords_data['data'][0]['latitude']
-                lon = coords_data['data'][0]['longitude']
-                db_add_city(coords_data['data'][0])
-                db_add_country(coords_data['data'][0])
-                db_add_user(message['from'], coords_data['data'][0])
-                answer = get_weather(lat, lon, get_full_city_name(coords_data['data'][0]))
-                await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=get_base_kb(message.chat.type),
-                                    disable_notification=True)
-            case _:
-                print(coords_data['data'])
-                answer = "*Найдено несколько результатов:*"
-                kb = InlineKeyboardMarkup()
-                for i, el in enumerate(coords_data['data']):
-                    answer += f"\n*{i + 1})* {get_full_city_name(el)}"
-                    kb.add(InlineKeyboardButton(str(i + 1), callback_data=f"w{el['id']}"))
-                await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=kb, disable_notification=True)
+        return
+    query = {
+        "limit": "5",
+        "namePrefix": city_query,
+        "types": "CITY",
+        "sort": "-population",
+        "languageCode": "en" if city_query[0].lower() in "abcdefghijklmnopqrstuvwxyz" else "ru"
+    }
+    coords_data = requests.request("GET", GEODB_URL, headers=GEODB_HEADERS, params=query).json()
+    match len(coords_data['data']):
+        case 0:
+            await message.reply("*Ошибка!* Город с таким названием не найден.", parse_mode=ParseMode.MARKDOWN,
+                                disable_notification=True)
+        case 1:
+            lat = coords_data['data'][0]['latitude']
+            lon = coords_data['data'][0]['longitude']
+            db_add_city(coords_data['data'][0])
+            db_add_country(coords_data['data'][0])
+            db_add_user(message['from'], coords_data['data'][0])
+            answer = get_weather(lat, lon, get_full_city_name(coords_data['data'][0]))
+            await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=get_base_kb(message.chat.type),
+                                disable_notification=True)
+        case _:
+            print(coords_data['data'])
+            answer = "*Найдено несколько результатов:*"
+            kb = InlineKeyboardMarkup()
+            for i, el in enumerate(coords_data['data']):
+                answer += f"\n*{i + 1})* {get_full_city_name(el)}"
+                kb.add(InlineKeyboardButton(str(i + 1), callback_data=f"w{el['id']}"))
+            await message.reply(answer, parse_mode=ParseMode.MARKDOWN, reply_markup=kb, disable_notification=True)
 
 
 @dp.message_handler(content_types=["location"])
@@ -276,15 +332,6 @@ async def getchatid_command(message: types.Message):
     btn = InlineKeyboardButton("Спасибо", callback_data="delete")
     kb = InlineKeyboardMarkup().add(btn)
     await message.reply(message.chat.id, reply_markup=kb, disable_notification=True)
-
-
-# @dp.message_handler(commands=["about1"])
-# async def getchatid_command(message: types.Message):
-#     plt.plot([1, 3], [4, 6])
-#     img = BytesIO()
-#     plt.savefig(img, format="png")
-#     img.seek(0)
-#     await bot.send_photo(message.chat.id, img, reply_to_message_id=message.message_id)
 
 
 @dp.message_handler(state="admin", commands=["admin", "a"])
@@ -307,73 +354,39 @@ async def admin_command(message: types.Message):
             except Exception:
                 await message.reply(f"*Возникла ошибка при отправке!* Возможно, такого чата не существует.",
                                     parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+        case ["remove" | "rm", link]:
+            link = link.split('/')
+            print(link)
+            try:
+                await bot.delete_message(chat_id=f"-100{link[4]}", message_id=link[5])
+            except Exception:
+                await message.reply(f"*Ошибка!* Сообщение не найдено.", parse_mode=ParseMode.MARKDOWN,
+                                    disable_notification=True)
         case ["stats" | "st", *args]:
             info = args[0] if args else ""
             match info:
                 case "cities":
-                    cursor.execute("SELECT * FROM cities ORDER BY -queries LIMIT 10;")
-                    data = cursor.fetchall()
-                    if not data:
-                        await message.reply(f"*Ошибка!* Данные отсутствуют.", parse_mode=ParseMode.MARKDOWN,
-                                            disable_notification=True)
-                        return
-                    caption = f"*Топ {len(data)} самых запрашиваемых городов:*\n"
-                    cities = []
-                    queries = []
-                    for i, el in enumerate(data):
-                        cities.append(f"{el[1]}\n{el[2]}\n{el[3]}")
-                        queries.append(el[4])
-                        caption += f"{i + 1}) {el[1]}, {el[2]}, {el[3]} ({el[4]})\n"
-                    img = draw_hist(cities, queries, data[0][4])
-                    await bot.send_photo(message.chat.id, img, caption, reply_to_message_id=message.message_id,
-                                         parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+                    get_cities_stats(message)
                 case "countries":
-                    cursor.execute("SELECT * FROM countries ORDER BY -queries LIMIT 10;")
-                    data = cursor.fetchall()
-                    if not data:
-                        await message.reply(f"*Ошибка!* Данные отсутствуют.", parse_mode=ParseMode.MARKDOWN,
-                                            disable_notification=True)
-                        return
-                    caption = f"*Топ {len(data)} самых запрашиваемых стран:*\n"
-                    countries = []
-                    queries = []
-                    for i in data:
-                        countries.append(i[1])
-                        queries.append(i[2])
-                        caption += f"{i[0]}) {i[1]} ({i[2]})\n"
-                    img = draw_hist(countries, queries, data[0][2])
-                    await bot.send_photo(message.chat.id, img, caption, reply_to_message_id=message.message_id,
-                                         parse_mode=ParseMode.MARKDOWN, disable_notification=True)
+                    get_countries_stats(message)
                 case "users":
-                    cursor.execute("SELECT * FROM users ORDER BY -queries LIMIT 50;")
-                    data = cursor.fetchall()
-                    if not data:
-                        await message.reply(f"*Ошибка!* Данные отсутствуют.", parse_mode=ParseMode.MARKDOWN,
-                                            disable_notification=True)
-                        return
-                    caption = f"<b>Топ {len(data)} самых активных пользователей:</b>\n"
-                    users = []
-                    queries = []
-                    for i, el in enumerate(data):
-                        users.append(f"{el[1]}\n@{el[2]}")
-                        queries.append(el[3])
-                        cursor.execute(f"SELECT * FROM cities WHERE city_id = {el[4]};")
-                        last_query = cursor.fetchall()
-                        caption += f"{i + 1}) {el[1]}, @{el[2]}\n" \
-                                   f"    ID чата: {el[0]}\n" \
-                                   f"    Количество запросов: {el[3]}\n" \
-                                   f"    Последний запрос: {last_query[0][1]}, {last_query[0][2]}, {last_query[0][3]}\n"
-                    print(caption)
-                    print(message)
-                    await message.reply(caption, parse_mode=ParseMode.HTML, disable_notification=True)
-                case _:
-                    await message.reply(f"*Синтаксис команды:*\n"
-                                        f"/admin (a) stats (st) \[параметр]\n"
-                                        f"*Возможные параметры:*\n"
-                                        f"cities – статистика по городам\n"
-                                        f"countries – статистика по странам\n"
-                                        f"users – статистика по пользователям", parse_mode=ParseMode.MARKDOWN,
+                    get_users_stats(message)
+                case "clear":
+                    cursor.execute("DELETE FROM cities;")
+                    cursor.execute("DELETE FROM countries;")
+                    cursor.execute("DELETE FROM users;")
+                    db.commit()
+                    await message.reply("*Данные успешно удалены!*", parse_mode=ParseMode.MARKDOWN,
                                         disable_notification=True)
+                case _:
+                    await message.reply(
+                        f"*Синтаксис команды:*\n"
+                        f"/admin (a) stats (st) \[параметр]\n"
+                        f"*Возможные параметры:*\n"
+                        f"cities – статистика по городам\n"
+                        f"countries – статистика по странам\n"
+                        f"users – статистика по пользователям\n"
+                        f"clear - очистить статистику", parse_mode=ParseMode.MARKDOWN, disable_notification=True)
         case _:
             await message.reply("*Ошибка!* Неизвестная команда.", parse_mode=ParseMode.MARKDOWN,
                                 disable_notification=True)
