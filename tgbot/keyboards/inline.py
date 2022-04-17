@@ -21,8 +21,10 @@ def getchatid_kb():
 def tiktaktoe_singleplayer_kb(player_id: int):
     kb = InlineKeyboardMarkup()
     for i in range(3):
-        btns = [InlineKeyboardButton(TIKTAKTOE_EMOJI['Empty'], callback_data=f"t_sp_{player_id}_{i}_{j}")
-                for j in range(3)]
+        btns = [
+            InlineKeyboardButton(TIKTAKTOE_EMOJI['Empty'], callback_data=f"t_sp_{player_id}_{i}_{j}")
+                for j in range(3)
+        ]
         kb = kb.row(*btns)
     return kb
 
@@ -30,8 +32,10 @@ def tiktaktoe_singleplayer_kb(player_id: int):
 def tiktaktoe_multiplayer_kb(player1_id: int, player2_id: int):
     kb = InlineKeyboardMarkup()
     for i in range(3):
-        btns = [InlineKeyboardButton(TIKTAKTOE_EMOJI['Empty'], callback_data=f"t_mp_{player1_id}_{player2_id}_{i}_{j}_1")
-                for j in range(3)]
+        btns = [
+            InlineKeyboardButton(TIKTAKTOE_EMOJI['Empty'], callback_data=f"t_mp_{player1_id}_{player2_id}_{i}_{j}_1")
+            for j in range(3)
+        ]
         kb = kb.row(*btns)
     return kb
 

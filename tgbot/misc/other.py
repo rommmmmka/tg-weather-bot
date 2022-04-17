@@ -18,3 +18,9 @@ def draw_hist(x, y, ticks_max):
     plt.close()
     img.seek(0)
     return img
+
+
+def format_name(name):
+    if not name:
+        return "???"
+    return "@" + name

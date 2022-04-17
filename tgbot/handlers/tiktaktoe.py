@@ -1,8 +1,11 @@
 from aiogram import Dispatcher, types
 
-from tgbot.keyboards.inline import tiktaktoe_singleplayer_kb, tiktaktoe_pick_enemy_kb, tiktaktoe_kill_callback_queries, \
-    tiktaktoe_join_kb, tiktaktoe_multiplayer_kb, tiktaktoe_change_order
+from tgbot.keyboards.inline import tiktaktoe_singleplayer_kb, tiktaktoe_pick_enemy_kb, tiktaktoe_join_kb, \
+    tiktaktoe_multiplayer_kb, tiktaktoe_change_order, tiktaktoe_kill_callback_queries
+from tgbot.misc.other import format_name
 from tgbot.misc.tiktaktoe import TIKTAKTOE_EMOJI, tiktaktoe_check_win, tiktaktoe_place_zero
+
+DEBUG = False
 
 
 async def callback_query_pick_gamemode(callback_query: types.CallbackQuery):
@@ -10,14 +13,16 @@ async def callback_query_pick_gamemode(callback_query: types.CallbackQuery):
     if callback_query.from_user.id != player_id:
         await callback_query.bot.answer_callback_query(callback_query.id)
         return
+
+    username = format_name(callback_query.from_user.username)
     if gamemode == 1:
         await callback_query.bot.edit_message_text(
-            f"<b>Крестики-нолики</b>\n@{callback_query.from_user.username} vs бот", callback_query.message.chat.id,
+            f"<b>Крестики-нолики</b>\n{username} vs бот", callback_query.message.chat.id,
             callback_query.message.message_id,
             reply_markup=tiktaktoe_singleplayer_kb(callback_query.from_user.id))
     else:
         await callback_query.bot.edit_message_text(
-            f"<b>Крестики-нолики</b>\n@{callback_query.from_user.username} vs ...\nПоиск противника",
+            f"<b>Крестики-нолики</b>\n{username} vs ...\nПоиск противника",
             callback_query.message.chat.id, callback_query.message.message_id,
             reply_markup=tiktaktoe_join_kb(callback_query.from_user.id))
         await callback_query.bot.answer_callback_query(callback_query.id)
@@ -27,10 +32,13 @@ async def callback_query_join(callback_query: types.CallbackQuery):
     player1_id = int(callback_query.data.split("_")[2])
     if callback_query.from_user.id == player1_id:
         await callback_query.bot.answer_callback_query(callback_query.id)
-        # return
+        if not DEBUG:
+            return
     player2_id = callback_query.from_user.id
     message_split = callback_query.message.text[:-20].split("\n")
-    message = f"<b>{message_split[0]}</b>\n{message_split[1]}@{callback_query.from_user.username}\nХод первого игрока"
+
+    username = format_name(callback_query.from_user.username)
+    message = f"<b>{message_split[0]}</b>\n{message_split[1]}{username}\nХод первого игрока"
     await callback_query.bot.edit_message_text(message, callback_query.message.chat.id,
                                                callback_query.message.message_id,
                                                reply_markup=tiktaktoe_multiplayer_kb(player1_id, player2_id))
