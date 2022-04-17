@@ -21,7 +21,6 @@ clear - очистить статистику"""
 
 
 async def admin_command(message: types.Message):
-    print(1)
     match message.get_args().split(" "):
         case ["help" | "h" | ""]:
             await message.reply(ADMIN_HELP, disable_notification=True)
@@ -57,12 +56,10 @@ async def admin_command(message: types.Message):
 
 
 async def admin_command_no_access(message: types.Message):
-    print(2)
     await message.reply("<b>Ошибка доступа!</b> Вы не являетесь администратором!", disable_notification=True)
 
 
 async def admin_command_not_private_chat(message: types.Message):
-    print(3)
     await message.reply("<b>Ошибка!</b> Панель администратора доступна только в личной переписке с ботом!",
                         disable_notification=True)
 
