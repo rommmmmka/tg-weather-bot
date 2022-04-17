@@ -8,6 +8,7 @@ ADMIN_HELP = """<b>Синтаксис команд администратора:
 <b>Список команд:</b>
 help (h) – справка по командам
 send (s) [id чата] [сообщение] – отправить сообщение от имени бота
+remove (rm) [ссылка на сообщение] - удалить сообщение
 stats (st) [cities/countries/users] – статистика бота
 stats (st) clear - очистить статистику бота"""
 
@@ -24,7 +25,7 @@ async def admin_command(message: types.Message):
             await message.reply(ADMIN_HELP, disable_notification=True)
         case ["send" | "s", chat_id, *msg]:
             try:
-                await message.answer(chat_id, " ".join(msg))
+                await message.bot.send_message(chat_id, " ".join(msg))
             except Exception:
                 await message.reply("<b>Возникла ошибка при отправке!</b> Возможно, такого чата не существует.",
                                     disable_notification=True)

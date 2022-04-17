@@ -97,10 +97,3 @@ def tiktaktoe_place_zero(kb):
         kb[coords[0]][coords[1]]['text'] = TIKTAKTOE_EMOJI['Zero']
         break
     return kb
-
-
-def tiktaktoe_kill_callback_queries(kb):
-    for i in range(3):
-        for j in range(3):
-            kb['inline_keyboard'][i][j]['callback_data'] = "killed_callback_query"
-    return kb

@@ -1,6 +1,6 @@
 from aiogram import types, Dispatcher
 
-from tgbot.keyboards.inline import getchatid_inline_kb
+from tgbot.keyboards.inline import getchatid_kb
 
 
 async def callback_query_delete(callback_query: types.CallbackQuery):
@@ -9,9 +9,9 @@ async def callback_query_delete(callback_query: types.CallbackQuery):
 
 
 async def getchatid_command(message: types.Message):
-    await message.reply(message.chat.id, reply_markup=getchatid_inline_kb(), disable_notification=True)
+    await message.reply(message.chat.id, reply_markup=getchatid_kb(), disable_notification=True)
 
 
 def register_misc(dp: Dispatcher):
-    dp.register_callback_query_handler(callback_query_delete, lambda c: c.data == "delete")
+    dp.register_callback_query_handler(callback_query_delete, lambda c: c.data == "m_delete")
     dp.register_message_handler(getchatid_command, commands=["getchatid", "gcid"])

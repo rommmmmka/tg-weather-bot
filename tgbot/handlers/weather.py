@@ -2,7 +2,7 @@ import requests
 from aiogram import types, Dispatcher
 
 from tgbot.config import Config
-from tgbot.keyboards.inline import cities_inline_kb
+from tgbot.keyboards.inline import cities_kb
 from tgbot.keyboards.reply import base_reply_kb
 from tgbot.misc.other import get_full_city_name
 from tgbot.misc.weather import get_weather
@@ -22,7 +22,7 @@ async def callback_query_weather(callback_query: types.CallbackQuery):
     }
     query = {"languageCode": "ru"}
 
-    city_id = callback_query.data[1:]
+    city_id = callback_query.data[2:]
     coords_data = requests.request("GET", GEODB_URL + city_id, headers=geodb_headers, params=query).json()
     lat = coords_data['data']['latitude']
     lon = coords_data['data']['longitude']
@@ -70,7 +70,7 @@ async def weather_command(message: types.Message):
             answer = get_weather(message.bot, lat, lon, get_full_city_name(coords_data['data'][0]))
             await message.reply(answer, reply_markup=base_reply_kb(message.chat.type), disable_notification=True)
         case _:
-            answer, kb = cities_inline_kb(coords_data['data'])
+            answer, kb = cities_kb(coords_data['data'])
             await message.reply(answer, reply_markup=kb, disable_notification=True)
 
 
@@ -82,6 +82,6 @@ async def location(message: types.Message):
 
 
 def register_weather(dp: Dispatcher):
-    dp.register_callback_query_handler(callback_query_weather, lambda c: len(c.data) > 0 and c.data[0] == "w")
+    dp.register_callback_query_handler(callback_query_weather, lambda c: c.data[0] == "w")
     dp.register_message_handler(weather_command, commands=["weather", "w"])
     dp.register_message_handler(location, content_types=["location"])

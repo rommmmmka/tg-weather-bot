@@ -47,6 +47,6 @@ class Database:
             cities.append(f"{value['city']}\n{value['region']}\n{value['country']}")
             caption += f"{i + 1}) {value['city']}, {value['region']}, {value['country']} ({value['queries']})\n"
 
-        img = draw_hist(cities, queries, data[0][4])
+        img = draw_hist(cities, queries, queries[0])
         await message.bot.send_photo(message.chat.id, photo=img, caption=caption,
                                      reply_to_message_id=message.message_id, disable_notification=True)
