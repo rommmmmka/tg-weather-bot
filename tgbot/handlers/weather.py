@@ -29,8 +29,6 @@ async def callback_query_weather(callback_query: types.CallbackQuery):
 
     db: Database = callback_query.bot.get("db")
     db.add_city(coords_data['data'])
-    db.add_country(coords_data['data'])
-    db.add_user(callback_query['from'], coords_data['data'])
 
     answer = get_weather(callback_query.bot, lat, lon, get_full_city_name(coords_data['data']))
     try:
@@ -69,8 +67,6 @@ async def weather_command(message: types.Message):
             lon = coords_data['data'][0]['longitude']
             db: Database = message.bot.get("db")
             db.add_city(coords_data['data'][0])
-            db.add_country(coords_data['data'][0])
-            db.add_user(message['from'], coords_data['data'][0])
             answer = get_weather(message.bot, lat, lon, get_full_city_name(coords_data['data'][0]))
             await message.reply(answer, reply_markup=base_reply_kb(message.chat.type), disable_notification=True)
         case _:

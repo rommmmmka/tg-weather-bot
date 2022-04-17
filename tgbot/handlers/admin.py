@@ -15,8 +15,6 @@ ADMIN_STATS_SYNTAX = """<b>Синтаксис команды:</b>
 /admin (a) stats (st) [параметр]
 <b>Возможные параметры:</b>
 cities – статистика по городам
-countries – статистика по странам
-users – статистика по пользователям
 clear - очистить статистику"""
 
 
@@ -42,10 +40,6 @@ async def admin_command(message: types.Message):
             match info:
                 case "cities":
                     await db.reply_cities_stats(message)
-                case "countries":
-                    await db.reply_countries_stats(message)
-                case "users":
-                    await db.reply_users_stats(message)
                 case "clear":
                     db.clear_stats()
                     await message.reply("<b>Данные успешно удалены!</b>", disable_notification=True)

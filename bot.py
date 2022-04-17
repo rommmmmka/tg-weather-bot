@@ -41,7 +41,7 @@ async def main():
     storage = MemoryStorage()
     bot = Bot(token=config.bot_token, parse_mode='HTML')
     dp = Dispatcher(bot, storage=storage)
-    db = Database(config.database)
+    db = Database(config.firebase_key_path, config.firebase_url)
 
     bot['config'] = config
     bot['db'] = db

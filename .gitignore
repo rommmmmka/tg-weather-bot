@@ -62,4 +62,4 @@ venv.bak/
 .idea/*
 .env
 
-db.sqlite
+firebase_key.json
