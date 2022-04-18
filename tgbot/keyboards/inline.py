@@ -1,9 +1,10 @@
+from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from tgbot.misc.tiktaktoe import TIKTAKTOE_EMOJI
 
 
-def cities_kb(data):
+def cities_kb(data: list):
     from tgbot.misc.other import get_full_city_name
     answer = "<b>Найдено несколько результатов:</b>"
     kb = InlineKeyboardMarkup()
@@ -17,7 +18,6 @@ def getchatid_kb():
     return InlineKeyboardMarkup().add(InlineKeyboardButton("Спасибо", callback_data="m_delete"))
 
 
-# t_крестики_нолики(bot)_координаты
 def tiktaktoe_singleplayer_kb(player_id: int):
     kb = InlineKeyboardMarkup()
     for i in range(3):
@@ -53,14 +53,14 @@ def tiktaktoe_join_kb(player_id: int):
     )
 
 
-def tiktaktoe_kill_callback_queries(kb):
+def tiktaktoe_kill_callback_queries(kb: types.InlineKeyboardMarkup):
     for i in range(3):
         for j in range(3):
             kb.inline_keyboard[i][j].callback_data = "t_killed"
     return kb
 
 
-def tiktaktoe_change_order(kb, new_order: int):
+def tiktaktoe_change_order(kb: types.InlineKeyboardMarkup, new_order: int):
     for i in range(3):
         for j in range(3):
             kb.inline_keyboard[i][j].callback_data = kb.inline_keyboard[i][j].callback_data[:-1] + str(new_order)

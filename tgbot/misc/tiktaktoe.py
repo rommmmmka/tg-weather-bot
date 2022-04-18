@@ -1,5 +1,7 @@
 import random
 
+from aiogram import types
+
 TIKTAKTOE_EMOJI = {
     "Cross": "\u274C",
     "Zero": "\u2B55",
@@ -18,7 +20,7 @@ def get_tiktaktoe_patterns():
     return patterns
 
 
-def tiktaktoe_check_win(kb):
+def tiktaktoe_check_win(kb: list):
     patterns = get_tiktaktoe_patterns()
     for player in [TIKTAKTOE_EMOJI['Cross'], TIKTAKTOE_EMOJI['Zero']]:
         for pattern in patterns:
@@ -27,7 +29,7 @@ def tiktaktoe_check_win(kb):
                 for j in range(3):
                     if pattern[i][j] == 0:
                         continue
-                    if kb[i][j]['text'] != player:
+                    if kb[i][j].text != player:
                         win = False
                         break
                 if not win:
@@ -36,12 +38,12 @@ def tiktaktoe_check_win(kb):
                 return player
     for i in range(3):
         for j in range(3):
-            if kb[i][j]['text'] == TIKTAKTOE_EMOJI['Empty']:
+            if kb[i][j].text == TIKTAKTOE_EMOJI['Empty']:
                 return 0
     return -1
 
 
-def tiktaktoe_place_zero(kb):
+def tiktaktoe_place_zero(kb: list):
     patterns = get_tiktaktoe_patterns()
     random.shuffle(patterns)
     place_coords = [[-1, -1], [-1, -1], [-1, -1], [-1, -1]]
@@ -49,7 +51,7 @@ def tiktaktoe_place_zero(kb):
     base_place_coords = []
     for i in range(3):
         for j in range(3):
-            if kb[i][j]['text'] == TIKTAKTOE_EMOJI['Empty']:
+            if kb[i][j].text == TIKTAKTOE_EMOJI['Empty']:
                 base_place_coords.append([i, j])
     if not base_place_coords:
         base_place_coords.append([-1, -1])
@@ -62,10 +64,10 @@ def tiktaktoe_place_zero(kb):
             for j in range(3):
                 if pattern[i][j] == 0:
                     continue
-                if kb[i][j]['text'] == TIKTAKTOE_EMOJI['Cross']:
+                if kb[i][j].text == TIKTAKTOE_EMOJI['Cross']:
                     can_place = False
                     break
-                if kb[i][j]['text'] == TIKTAKTOE_EMOJI['Empty']:
+                if kb[i][j].text == TIKTAKTOE_EMOJI['Empty']:
                     curr_place_coords.append([i, j])
             if not can_place:
                 break
@@ -80,10 +82,10 @@ def tiktaktoe_place_zero(kb):
             for j in range(3):
                 if pattern[i][j] == 0:
                     continue
-                if kb[i][j]['text'] == TIKTAKTOE_EMOJI['Zero']:
+                if kb[i][j].text == TIKTAKTOE_EMOJI['Zero']:
                     need_to_place = False
                     break
-                if kb[i][j]['text'] == TIKTAKTOE_EMOJI['Empty']:
+                if kb[i][j].text == TIKTAKTOE_EMOJI['Empty']:
                     curr_place_coords.append([i, j])
             if not need_to_place:
                 break
@@ -94,6 +96,6 @@ def tiktaktoe_place_zero(kb):
     for coords in place_coords:
         if coords == [-1, -1]:
             continue
-        kb[coords[0]][coords[1]]['text'] = TIKTAKTOE_EMOJI['Zero']
+        kb[coords[0]][coords[1]].text = TIKTAKTOE_EMOJI['Zero']
         break
     return kb

@@ -2,6 +2,7 @@ import locale
 from datetime import datetime
 
 import requests
+from aiogram import Bot
 
 from tgbot.config import Config
 
@@ -16,7 +17,7 @@ EMOJI = {
 }
 
 
-def get_weather(bot, lat, lon, city_name=None):
+def get_weather(bot: Bot, lat: float, lon: float, city_name: str = None):
     config: Config = bot.get("config")
     weather_data = requests.get(
         f"https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=minutely,hourly,alerts&appid={config.open_weather_token}&units=metric&lang=ru").json()

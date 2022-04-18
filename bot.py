@@ -17,12 +17,12 @@ from tgbot.services.db import Database
 logger = logging.getLogger(__name__)
 
 
-def register_all_filters(dp):
+def register_all_filters(dp: Dispatcher):
     dp.filters_factory.bind(AdminFilter)
     dp.filters_factory.bind(PrivateChatFilter)
 
 
-def register_all_handlers(dp):
+def register_all_handlers(dp: Dispatcher):
     register_admin(dp)
     register_info(dp)
     register_misc(dp)

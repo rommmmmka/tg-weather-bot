@@ -1,7 +1,7 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
 
-def base_reply_kb(chat_type):
+def base_reply_kb(chat_type: str):
     if chat_type == "private":
         return ReplyKeyboardMarkup(resize_keyboard=True).row(
             KeyboardButton("/help"), KeyboardButton("/about")
