@@ -1,5 +1,6 @@
 from aiogram import Dispatcher, types
 
+from tgbot.config import Config
 from tgbot.keyboards.inline import tiktaktoe_singleplayer_kb, tiktaktoe_pick_enemy_kb, tiktaktoe_join_kb, \
     tiktaktoe_multiplayer_kb, tiktaktoe_change_order, tiktaktoe_kill_callback_queries
 from tgbot.misc.other import format_name
@@ -25,15 +26,15 @@ async def callback_query_pick_gamemode(callback_query: types.CallbackQuery):
             f"<b>Крестики-нолики</b>\n{username} vs ...\nПоиск противника",
             callback_query.message.chat.id, callback_query.message.message_id,
             reply_markup=tiktaktoe_join_kb(callback_query.from_user.id))
-        await callback_query.bot.answer_callback_query(callback_query.id)
+    await callback_query.bot.answer_callback_query(callback_query.id)
 
 
 async def callback_query_join(callback_query: types.CallbackQuery):
     player1_id = int(callback_query.data.split("_")[2])
-    if callback_query.from_user.id == player1_id:
+    config: Config = callback_query.bot.get('config')
+    if callback_query.from_user.id == player1_id and not config.debug:
         await callback_query.bot.answer_callback_query(callback_query.id)
-        if not DEBUG:
-            return
+        return
     player2_id = callback_query.from_user.id
     message_split = callback_query.message.text[:-20].split("\n")
 
@@ -42,6 +43,7 @@ async def callback_query_join(callback_query: types.CallbackQuery):
     await callback_query.bot.edit_message_text(message, callback_query.message.chat.id,
                                                callback_query.message.message_id,
                                                reply_markup=tiktaktoe_multiplayer_kb(player1_id, player2_id))
+    await callback_query.bot.answer_callback_query(callback_query.id)
 
 
 async def callback_query_singleplayer(callback_query: types.CallbackQuery):
@@ -140,16 +142,16 @@ async def tiktaktoe_start_group(message: types.Message):
 
 
 def register_tiktaktoe(dp: Dispatcher):
-    dp.register_callback_query_handler(callback_query_pick_gamemode,
-                                       lambda c: c.data[0] == "t" and c.data.split("_")[1] == "gmpick")
-    dp.register_callback_query_handler(callback_query_join,
-                                       lambda c: c.data[0] == "t" and c.data.split("_")[1] == "mpjoin")
-    dp.register_callback_query_handler(callback_query_singleplayer,
-                                       lambda c: c.data[0] == "t" and c.data.split("_")[1] == "sp")
-    dp.register_callback_query_handler(callback_query_multiplayer,
-                                       lambda c: c.data[0] == "t" and c.data.split("_")[1] == "mp")
-    dp.register_callback_query_handler(callback_query_killed_answer,
-                                       lambda c: c.data[0] == "t" and c.data.split("_")[1] == "killed")
+    dp.register_callback_query_handler(callback_query_pick_gamemode, lambda c: c.data.split("_")[1] == "gmpick",
+                                       is_tiktaktoe_callback=True)
+    dp.register_callback_query_handler(callback_query_join, lambda c: c.data.split("_")[1] == "mpjoin",
+                                       is_tiktaktoe_callback=True)
+    dp.register_callback_query_handler(callback_query_singleplayer, lambda c: c.data.split("_")[1] == "sp",
+                                       is_tiktaktoe_callback=True)
+    dp.register_callback_query_handler(callback_query_multiplayer, lambda c: c.data.split("_")[1] == "mp",
+                                       is_tiktaktoe_callback=True)
+    dp.register_callback_query_handler(callback_query_killed_answer, lambda c: c.data.split("_")[1] == "killed",
+                                       is_tiktaktoe_callback=True)
 
     dp.register_message_handler(tiktaktoe_start, commands=["tiktaktoe", "ttt"], is_chat_private=True)
     dp.register_message_handler(tiktaktoe_start_group, commands=["tiktaktoe", "ttt"], is_chat_private=False)

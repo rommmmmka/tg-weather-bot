@@ -1,11 +1,11 @@
 from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+from tgbot.misc.other import get_full_city_name
 from tgbot.misc.tiktaktoe import TIKTAKTOE_EMOJI
 
 
 def cities_kb(data: list):
-    from tgbot.misc.other import get_full_city_name
     answer = "<b>Найдено несколько результатов:</b>"
     kb = InlineKeyboardMarkup()
     for i, el in enumerate(data):
@@ -23,7 +23,7 @@ def tiktaktoe_singleplayer_kb(player_id: int):
     for i in range(3):
         btns = [
             InlineKeyboardButton(TIKTAKTOE_EMOJI['Empty'], callback_data=f"t_sp_{player_id}_{i}_{j}")
-                for j in range(3)
+            for j in range(3)
         ]
         kb = kb.row(*btns)
     return kb

@@ -11,6 +11,7 @@ class Config:
     firebase_key_path: str
     firebase_url: str
     admin_ids: list[int]
+    debug: bool
 
 
 def load_config(path: str = None):
@@ -23,5 +24,6 @@ def load_config(path: str = None):
         geodb_token=env.str("GEODB_TOKEN"),
         firebase_key_path=env.str("FIREBASE_KEY_PATH"),
         firebase_url=env.str("FIREBASE_URL"),
-        admin_ids=list(map(int, env.list("ADMINS")))
+        admin_ids=list(map(int, env.list("ADMINS"))),
+        debug=env.bool("DEBUG")
     )
