@@ -8,15 +8,15 @@ ADMIN_HELP = """<b>Синтаксис команд администратора:
 <b>Список команд:</b>
 help (h) – справка по командам
 send (s) [id чата] [сообщение] – отправить сообщение от имени бота
-remove (rm) [ссылка на сообщение] - удалить сообщение
-stats (st) [cities/countries/users] – статистика бота
-stats (st) clear - очистить статистику бота"""
+remove (rm) [ссылка на сообщение] – удалить сообщение
+stats (st) [cities/clear] – статистика бота
+stats (st) clear – очистить статистику бота"""
 
 ADMIN_STATS_SYNTAX = """<b>Синтаксис команды:</b>
 /admin (a) stats (st) [параметр]
 <b>Возможные параметры:</b>
 cities – статистика по городам
-clear - очистить статистику"""
+clear – очистить статистику"""
 
 
 async def admin_command(message: types.Message):

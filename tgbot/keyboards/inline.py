@@ -14,7 +14,7 @@ def cities_kb(data: list):
     return answer, kb
 
 
-def getchatid_kb():
+def getid_kb():
     return InlineKeyboardMarkup().add(InlineKeyboardButton("Спасибо", callback_data="m_delete"))
 
 
