@@ -1,3 +1,5 @@
+from string import ascii_letters
+
 import requests
 from aiogram import types, Dispatcher
 
@@ -55,7 +57,7 @@ async def weather_command(message: types.Message):
         "namePrefix": city_query,
         "types": "CITY",
         "sort": "-population",
-        "languageCode": "en" if city_query[0].lower() in "abcdefghijklmnopqrstuvwxyz" else "ru"
+        "languageCode": "en" if city_query[0] in ascii_letters else "ru"
     }
 
     coords_data = requests.request("GET", GEODB_URL, headers=geodb_headers, params=query).json()

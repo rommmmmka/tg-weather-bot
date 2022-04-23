@@ -1,5 +1,6 @@
 from aiogram import types, Dispatcher
 
+from tgbot.misc.plots import get_plot
 from tgbot.services.db import Database
 
 ADMIN_HELP = """<b>Синтаксис команд администратора:</b>
@@ -9,13 +10,13 @@ ADMIN_HELP = """<b>Синтаксис команд администратора:
 help (h) – справка по командам
 send (s) [id чата] [сообщение] – отправить сообщение от имени бота
 remove (rm) [ссылка на сообщение] – удалить сообщение
-stats (st) [cities/clear] – статистика бота
-stats (st) clear – очистить статистику бота"""
+stats (st) [параметр] – статистика бота"""
 
 ADMIN_STATS_SYNTAX = """<b>Синтаксис команды:</b>
 /admin (a) stats (st) [параметр]
 <b>Возможные параметры:</b>
-cities – статистика по городам
+hist (h) – гистограмма
+circle (c) - круговая диаграмма
 clear – очистить статистику"""
 
 
@@ -36,11 +37,20 @@ async def admin_command(message: types.Message):
             except Exception:
                 await message.reply(f"<b>Ошибка!</b> Сообщение не найдено.", disable_notification=True)
         case ["stats" | "st", *args]:
-            info = args[0] if args else ""
+            plot_type = args[0] if args else ""
             db: Database = message.bot.get('db')
-            match info:
-                case "cities":
-                    await db.reply_cities_stats(message)
+            match plot_type:
+                case "hist" | "circle" | "h" | "c":
+                    queries, cities_new_line, cities_space = db.get_stats()
+                    if len(queries) == 0:
+                        await message.reply("<b>Данные отсутствуют!</b>", disable_notification=True)
+                        return
+                    img = get_plot(plot_type, queries, cities_new_line)
+                    caption = "<b>Самые запрашиваемые города:</b>"
+                    for i, (city_name, queries_number) in enumerate(zip(cities_space, queries)):
+                        caption += f"\n{i + 1}) {city_name} ({queries_number})"
+                    await message.bot.send_photo(message.chat.id, photo=img, caption=caption,
+                                                 reply_to_message_id=message.message_id, disable_notification=True)
                 case "clear":
                     db.clear_stats()
                     await message.reply("<b>Данные успешно удалены!</b>", disable_notification=True)

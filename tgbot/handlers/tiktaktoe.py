@@ -6,8 +6,6 @@ from tgbot.keyboards.inline import tiktaktoe_singleplayer_kb, tiktaktoe_pick_ene
 from tgbot.misc.other import format_name
 from tgbot.misc.tiktaktoe import TIKTAKTOE_EMOJI, tiktaktoe_check_win, tiktaktoe_place_zero
 
-DEBUG = False
-
 
 async def callback_query_pick_gamemode(callback_query: types.CallbackQuery):
     player_id, gamemode = map(int, callback_query.data.split("_")[2:])

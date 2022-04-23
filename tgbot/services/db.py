@@ -1,7 +1,6 @@
-from aiogram import types
 from firebase_admin import credentials, initialize_app, db
 
-from tgbot.misc.other import draw_hist, get_full_city_name
+from tgbot.misc.other import get_full_city_name
 
 
 class Database:
@@ -28,21 +27,15 @@ class Database:
     def clear_stats(self):
         self.ref.set({})
 
-    async def reply_cities_stats(self, message: types.Message):
-        data = self.ref.order_by_child("queries").limit_to_last(10).get()
-        if not data:
-            await message.reply("<b>Данные отсутствуют!</b>", disable_notification=True)
-            return
-
-        caption = f"<b>Топ {len(data)} самых запрашиваемых городов:</b>\n"
-        cities = []
+    def get_stats(self):
+        data = self.ref.order_by_child("queries").get()
         queries = []
+        cities_new_line = []
+        cities_space = []
         for i, key in enumerate(reversed(data)):
             value = self.ref.child(key).get()
             queries.append(value['queries'])
-            cities.append(get_full_city_name(value, "\n"))
-            caption += f"{i + 1}) {get_full_city_name(value)} ({value['queries']})\n"
+            cities_new_line.append(get_full_city_name(value, "\n"))
+            cities_space.append(get_full_city_name(value))
 
-        img = draw_hist(cities, queries, queries[0])
-        await message.bot.send_photo(message.chat.id, photo=img, caption=caption,
-                                     reply_to_message_id=message.message_id, disable_notification=True)
+        return queries, cities_new_line, cities_space

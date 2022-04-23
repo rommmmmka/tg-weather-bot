@@ -1,7 +1,5 @@
 import random
 
-from aiogram import types
-
 TIKTAKTOE_EMOJI = {
     "Cross": "\u274C",
     "Zero": "\u2B55",
