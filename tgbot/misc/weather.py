@@ -26,6 +26,8 @@ def get_weather(bot: Bot, lat: float, lon: float, city_name: str = None):
     weather_desc = f"{EMOJI[weather_desc]} " if weather_desc in EMOJI else ""
     if city_name is not None:
         city_name = f"<b>{city_name}</b>\n\n"
+    else:
+        city_name = ""
     answer = f"{city_name}" \
              f"<b>Текущая погода:</b>\n" \
              f"{round(weather_data['current']['temp'])}°C (ощущается как {round(weather_data['current']['feels_like'])}°C)\n" \
