@@ -32,7 +32,7 @@ class Database:
         queries = []
         cities_new_line = []
         cities_space = []
-        for i, key in enumerate(reversed(data)):
+        for key in reversed(data):
             value = self.ref.child(key).get()
             queries.append(value['queries'])
             cities_new_line.append(get_full_city_name(value, "\n"))

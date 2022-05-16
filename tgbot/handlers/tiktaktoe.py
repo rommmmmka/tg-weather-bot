@@ -55,7 +55,7 @@ async def callback_query_singleplayer(callback_query: types.CallbackQuery):
 
         kb.inline_keyboard[i][j].text = TIKTAKTOE_EMOJI['Cross']
         winner = tiktaktoe_check_win(kb.inline_keyboard)
-        if winner == 0 or winner == -1:
+        if winner == 0:
             kb.inline_keyboard = tiktaktoe_place_zero(kb.inline_keyboard)
             winner = tiktaktoe_check_win(kb.inline_keyboard)
 

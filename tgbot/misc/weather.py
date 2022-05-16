@@ -22,12 +22,11 @@ def get_weather(bot: Bot, lat: float, lon: float, city_name: str = None):
     weather_data = requests.get(
         f"https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude=minutely,hourly,alerts&appid={config.open_weather_token}&units=metric&lang=ru").json()
     locale.setlocale(locale.LC_ALL, ("ru_RU", "UTF-8"))
+
     weather_desc = weather_data['current']['weather'][0]['main']
     weather_desc = f"{EMOJI[weather_desc]} " if weather_desc in EMOJI else ""
-    if city_name is not None:
-        city_name = f"<b>{city_name}</b>\n\n"
-    else:
-        city_name = ""
+    city_name = f"<b>{city_name}</b>\n\n" if city_name is not None else ""
+
     answer = f"{city_name}" \
              f"<b>Текущая погода:</b>\n" \
              f"{round(weather_data['current']['temp'])}°C (ощущается как {round(weather_data['current']['feels_like'])}°C)\n" \
@@ -40,4 +39,5 @@ def get_weather(bot: Bot, lat: float, lon: float, city_name: str = None):
                   f"Утро: {round(weather_data['daily'][i]['temp']['morn'])}°C, день: {round(weather_data['daily'][i]['temp']['day'])}°C, вечер: {round(weather_data['daily'][i]['temp']['eve'])}°C, ночь: {round(weather_data['daily'][i]['temp']['night'])}°C\n" \
                   f"Влажность: {weather_data['daily'][i]['humidity']}%\nСкорость ветра: {weather_data['daily'][i]['wind_speed']} м/c\n" \
                   f"{weather_desc}{weather_data['daily'][i]['weather'][0]['description'].capitalize()}\n"
+
     return answer

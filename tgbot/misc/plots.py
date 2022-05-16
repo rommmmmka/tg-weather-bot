@@ -50,6 +50,6 @@ def draw_circle(categories: list, data: list):
 
 
 def get_plot(plot_type: str, queries: list, cities: list):
-    if plot_type in ["hist", "h"]:
+    if plot_type in {"hist", "h"}:
         return draw_hist(cities, queries)
     return draw_circle(cities, queries)
