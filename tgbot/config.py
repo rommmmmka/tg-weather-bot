@@ -25,5 +25,5 @@ def load_config(path: str = None):
         firebase_key_path=env.str("FIREBASE_KEY_PATH"),
         firebase_url=env.str("FIREBASE_URL"),
         admin_ids=list(map(int, env.list("ADMINS"))),
-        debug=env.bool("DEBUG")
+        debug=env.bool("DEBUG"),
     )

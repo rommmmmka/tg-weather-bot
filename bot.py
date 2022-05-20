@@ -34,17 +34,17 @@ def register_all_handlers(dp: Dispatcher):
 async def main():
     logging.basicConfig(
         level=logging.INFO,
-        format=u'[%(asctime)s] #%(levelname)s %(filename)s:%(lineno)d - %(name)s - %(message)s',
+        format="[%(asctime)s] #%(levelname)s %(filename)s:%(lineno)d - %(name)s - %(message)s",
     )
     logger.info("Запуск бота...")
     config = load_config(".env")
 
-    bot = Bot(token=config.bot_token, parse_mode='HTML')
+    bot = Bot(token=config.bot_token, parse_mode="HTML")
     dp = Dispatcher(bot)
     db = Database(config.firebase_key_path, config.firebase_url)
 
-    bot['config'] = config
-    bot['db'] = db
+    bot["config"] = config
+    bot["db"] = db
 
     register_all_filters(dp)
     register_all_handlers(dp)
@@ -55,7 +55,7 @@ async def main():
         await bot.session.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):

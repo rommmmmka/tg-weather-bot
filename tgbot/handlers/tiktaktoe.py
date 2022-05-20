@@ -1,10 +1,20 @@
 from aiogram import Dispatcher, types
 
 from tgbot.config import Config
-from tgbot.keyboards.inline import tiktaktoe_singleplayer_kb, tiktaktoe_pick_enemy_kb, tiktaktoe_join_kb, \
-    tiktaktoe_multiplayer_kb, tiktaktoe_change_order, tiktaktoe_kill_callback_queries
+from tgbot.keyboards.inline import (
+    tiktaktoe_singleplayer_kb,
+    tiktaktoe_pick_enemy_kb,
+    tiktaktoe_join_kb,
+    tiktaktoe_multiplayer_kb,
+    tiktaktoe_change_order,
+    tiktaktoe_kill_callback_queries,
+)
 from tgbot.misc.other import format_name
-from tgbot.misc.tiktaktoe import TIKTAKTOE_EMOJI, tiktaktoe_check_win, tiktaktoe_place_zero
+from tgbot.misc.tiktaktoe import (
+    TIKTAKTOE_EMOJI,
+    tiktaktoe_check_win,
+    tiktaktoe_place_zero,
+)
 
 
 async def callback_query_pick_gamemode(callback_query: types.CallbackQuery):
@@ -16,20 +26,24 @@ async def callback_query_pick_gamemode(callback_query: types.CallbackQuery):
     username = format_name(callback_query.from_user.username)
     if gamemode == 1:
         await callback_query.bot.edit_message_text(
-            f"<b>Крестики-нолики</b>\n{username} vs бот", callback_query.message.chat.id,
+            f"<b>Крестики-нолики</b>\n{username} vs бот",
+            callback_query.message.chat.id,
             callback_query.message.message_id,
-            reply_markup=tiktaktoe_singleplayer_kb(callback_query.from_user.id))
+            reply_markup=tiktaktoe_singleplayer_kb(callback_query.from_user.id),
+        )
     else:
         await callback_query.bot.edit_message_text(
             f"<b>Крестики-нолики</b>\n{username} vs ...\nПоиск противника",
-            callback_query.message.chat.id, callback_query.message.message_id,
-            reply_markup=tiktaktoe_join_kb(callback_query.from_user.id))
+            callback_query.message.chat.id,
+            callback_query.message.message_id,
+            reply_markup=tiktaktoe_join_kb(callback_query.from_user.id),
+        )
     await callback_query.bot.answer_callback_query(callback_query.id)
 
 
 async def callback_query_join(callback_query: types.CallbackQuery):
     player1_id = int(callback_query.data.split("_")[2])
-    config: Config = callback_query.bot.get('config')
+    config: Config = callback_query.bot.get("config")
     if callback_query.from_user.id == player1_id and not config.debug:
         await callback_query.bot.answer_callback_query(callback_query.id)
         return
@@ -37,10 +51,15 @@ async def callback_query_join(callback_query: types.CallbackQuery):
     message_split = callback_query.message.text[:-20].split("\n")
 
     username = format_name(callback_query.from_user.username)
-    message = f"<b>{message_split[0]}</b>\n{message_split[1]}{username}\nХод первого игрока"
-    await callback_query.bot.edit_message_text(message, callback_query.message.chat.id,
-                                               callback_query.message.message_id,
-                                               reply_markup=tiktaktoe_multiplayer_kb(player1_id, player2_id))
+    message = (
+        f"<b>{message_split[0]}</b>\n{message_split[1]}{username}\nХод первого игрока"
+    )
+    await callback_query.bot.edit_message_text(
+        message,
+        callback_query.message.chat.id,
+        callback_query.message.message_id,
+        reply_markup=tiktaktoe_multiplayer_kb(player1_id, player2_id),
+    )
     await callback_query.bot.answer_callback_query(callback_query.id)
 
 
@@ -50,10 +69,10 @@ async def callback_query_singleplayer(callback_query: types.CallbackQuery):
         if player_id != callback_query.from_user.id:
             raise Exception
         kb = callback_query.message.reply_markup
-        if kb.inline_keyboard[i][j].text != TIKTAKTOE_EMOJI['Empty']:
+        if kb.inline_keyboard[i][j].text != TIKTAKTOE_EMOJI["Empty"]:
             raise Exception
 
-        kb.inline_keyboard[i][j].text = TIKTAKTOE_EMOJI['Cross']
+        kb.inline_keyboard[i][j].text = TIKTAKTOE_EMOJI["Cross"]
         winner = tiktaktoe_check_win(kb.inline_keyboard)
         if winner == 0:
             kb.inline_keyboard = tiktaktoe_place_zero(kb.inline_keyboard)
@@ -65,18 +84,29 @@ async def callback_query_singleplayer(callback_query: types.CallbackQuery):
             message += "\n" + message_split[1]
         match winner:
             case 0:
-                await callback_query.bot.edit_message_text(message, callback_query.message.chat.id,
-                                                           callback_query.message.message_id, reply_markup=kb)
+                await callback_query.bot.edit_message_text(
+                    message,
+                    callback_query.message.chat.id,
+                    callback_query.message.message_id,
+                    reply_markup=kb,
+                )
             case -1:
                 kb = tiktaktoe_kill_callback_queries(kb)
-                await callback_query.bot.edit_message_text(message + "\nНичья!",
-                                                           callback_query.message.chat.id,
-                                                           callback_query.message.message_id, reply_markup=kb)
+                await callback_query.bot.edit_message_text(
+                    message + "\nНичья!",
+                    callback_query.message.chat.id,
+                    callback_query.message.message_id,
+                    reply_markup=kb,
+                )
             case w:
                 kb = tiktaktoe_kill_callback_queries(kb)
                 await callback_query.bot.edit_message_text(
-                    message + f"\nВы {'победили' if w == TIKTAKTOE_EMOJI['Cross'] else 'проиграли'}!",
-                    callback_query.message.chat.id, callback_query.message.message_id, reply_markup=kb)
+                    message
+                    + f"\nВы {'победили' if w == TIKTAKTOE_EMOJI['Cross'] else 'проиграли'}!",
+                    callback_query.message.chat.id,
+                    callback_query.message.message_id,
+                    reply_markup=kb,
+                )
     except Exception:
         pass
     await callback_query.bot.answer_callback_query(callback_query.id)
@@ -86,16 +116,16 @@ async def callback_query_multiplayer(callback_query: types.CallbackQuery):
     player1_id, player2_id, i, j, order = map(int, callback_query.data.split("_")[2:])
     if order == 1:
         current_player_id = player1_id
-        current_emoji = TIKTAKTOE_EMOJI['Cross']
+        current_emoji = TIKTAKTOE_EMOJI["Cross"]
     else:
         current_player_id = player2_id
-        current_emoji = TIKTAKTOE_EMOJI['Zero']
+        current_emoji = TIKTAKTOE_EMOJI["Zero"]
 
     try:
         if current_player_id != callback_query.from_user.id:
             raise Exception
         kb = callback_query.message.reply_markup
-        if kb.inline_keyboard[i][j].text != TIKTAKTOE_EMOJI['Empty']:
+        if kb.inline_keyboard[i][j].text != TIKTAKTOE_EMOJI["Empty"]:
             raise Exception
 
         kb.inline_keyboard[i][j].text = current_emoji
@@ -106,19 +136,33 @@ async def callback_query_multiplayer(callback_query: types.CallbackQuery):
         match winner:
             case 0:
                 new_order = 1 if order == 2 else 2
-                message += "Ход первого игрока" if new_order == 1 else "Ход второго игрока"
+                message += (
+                    "Ход первого игрока" if new_order == 1 else "Ход второго игрока"
+                )
                 kb = tiktaktoe_change_order(kb, new_order)
-                await callback_query.bot.edit_message_text(message, callback_query.message.chat.id,
-                                                           callback_query.message.message_id, reply_markup=kb)
+                await callback_query.bot.edit_message_text(
+                    message,
+                    callback_query.message.chat.id,
+                    callback_query.message.message_id,
+                    reply_markup=kb,
+                )
             case -1:
                 kb = tiktaktoe_kill_callback_queries(kb)
-                await callback_query.bot.edit_message_text(message + "Ничья!", callback_query.message.chat.id,
-                                                           callback_query.message.message_id, reply_markup=kb)
+                await callback_query.bot.edit_message_text(
+                    message + "Ничья!",
+                    callback_query.message.chat.id,
+                    callback_query.message.message_id,
+                    reply_markup=kb,
+                )
             case w:
                 message += f"Победил {'первый' if w == TIKTAKTOE_EMOJI['Cross'] else 'второй'} игрок"
                 kb = tiktaktoe_kill_callback_queries(kb)
-                await callback_query.bot.edit_message_text(message, callback_query.message.chat.id,
-                                                           callback_query.message.message_id, reply_markup=kb)
+                await callback_query.bot.edit_message_text(
+                    message,
+                    callback_query.message.chat.id,
+                    callback_query.message.message_id,
+                    reply_markup=kb,
+                )
     except Exception:
         pass
     await callback_query.bot.answer_callback_query(callback_query.id)
@@ -129,14 +173,19 @@ async def callback_query_killed_answer(callback_query: types.CallbackQuery):
 
 
 async def tiktaktoe_start(message: types.Message):
-    await message.reply("<b>Крестики-нолики</b>", reply_markup=tiktaktoe_singleplayer_kb(message.from_user.id),
-                        disable_notification=True)
+    await message.reply(
+        "<b>Крестики-нолики</b>",
+        reply_markup=tiktaktoe_singleplayer_kb(message.from_user.id),
+        disable_notification=True,
+    )
 
 
 async def tiktaktoe_start_group(message: types.Message):
-    await message.reply("<b>Крестики нолики</b>\nВыберите режим",
-                        reply_markup=tiktaktoe_pick_enemy_kb(message.from_user.id),
-                        disable_notification=True)
+    await message.reply(
+        "<b>Крестики нолики</b>\nВыберите режим",
+        reply_markup=tiktaktoe_pick_enemy_kb(message.from_user.id),
+        disable_notification=True,
+    )
 
 
 def register_tiktaktoe(dp: Dispatcher):
@@ -146,5 +195,9 @@ def register_tiktaktoe(dp: Dispatcher):
     dp.register_callback_query_handler(callback_query_multiplayer, command=["t", "mp"])
     dp.register_callback_query_handler(callback_query_killed_answer, command=["t", "killed"])
 
-    dp.register_message_handler(tiktaktoe_start, commands=["tiktaktoe", "ttt"], is_chat_private=True)
-    dp.register_message_handler(tiktaktoe_start_group, commands=["tiktaktoe", "ttt"], is_chat_private=False)
+    dp.register_message_handler(
+        tiktaktoe_start, commands=["tiktaktoe", "ttt"], is_chat_private=True
+    )
+    dp.register_message_handler(
+        tiktaktoe_start_group, commands=["tiktaktoe", "ttt"], is_chat_private=False
+    )

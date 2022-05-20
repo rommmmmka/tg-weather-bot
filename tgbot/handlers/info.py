@@ -17,7 +17,11 @@ ABOUT_MESSAGE = """<b>Метеостанция №13 г. Любань</b> явл
 
 
 async def start_help_commands(message: types.Message):
-    await message.reply(HELP_MESSAGE, reply_markup=base_reply_kb(message.chat.type), disable_notification=True)
+    await message.reply(
+        HELP_MESSAGE,
+        reply_markup=base_reply_kb(message.chat.type),
+        disable_notification=True,
+    )
 
 
 async def about_command(message: types.Message):

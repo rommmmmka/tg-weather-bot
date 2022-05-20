@@ -2,7 +2,7 @@ from aiogram.dispatcher.filters import BoundFilter
 
 
 class IsChatPrivateFilter(BoundFilter):
-    key = 'is_chat_private'
+    key = "is_chat_private"
 
     def __init__(self, is_chat_private: bool | None):
         self.is_chat_private = is_chat_private

@@ -15,14 +15,18 @@ def cities_kb(data: list):
 
 
 def getid_kb():
-    return InlineKeyboardMarkup().add(InlineKeyboardButton("Спасибо", callback_data="m_delete"))
+    return InlineKeyboardMarkup().add(
+        InlineKeyboardButton("Спасибо", callback_data="m_delete")
+    )
 
 
 def tiktaktoe_singleplayer_kb(player_id: int):
     kb = InlineKeyboardMarkup()
     for i in range(3):
         btns = [
-            InlineKeyboardButton(TIKTAKTOE_EMOJI['Empty'], callback_data=f"t_sp_{player_id}_{i}_{j}")
+            InlineKeyboardButton(
+                TIKTAKTOE_EMOJI["Empty"], callback_data=f"t_sp_{player_id}_{i}_{j}"
+            )
             for j in range(3)
         ]
         kb = kb.row(*btns)
@@ -33,7 +37,10 @@ def tiktaktoe_multiplayer_kb(player1_id: int, player2_id: int):
     kb = InlineKeyboardMarkup()
     for i in range(3):
         btns = [
-            InlineKeyboardButton(TIKTAKTOE_EMOJI['Empty'], callback_data=f"t_mp_{player1_id}_{player2_id}_{i}_{j}_1")
+            InlineKeyboardButton(
+                TIKTAKTOE_EMOJI["Empty"],
+                callback_data=f"t_mp_{player1_id}_{player2_id}_{i}_{j}_1",
+            )
             for j in range(3)
         ]
         kb = kb.row(*btns)
@@ -43,7 +50,9 @@ def tiktaktoe_multiplayer_kb(player1_id: int, player2_id: int):
 def tiktaktoe_pick_enemy_kb(player_id: int):
     return InlineKeyboardMarkup().row(
         InlineKeyboardButton("Против бота", callback_data=f"t_gmpick_{player_id}_1"),
-        InlineKeyboardButton("Против человека", callback_data=f"t_gmpick_{player_id}_2")
+        InlineKeyboardButton(
+            "Против человека", callback_data=f"t_gmpick_{player_id}_2"
+        ),
     )
 
 

@@ -10,19 +10,21 @@ class Database:
         self.ref = db.reference("/cities/", app, firebase_url)
 
     def add_city(self, data):
-        country = "Беларусь" if data['country'] == "Белоруссия" else data['country']
+        country = "Беларусь" if data["country"] == "Белоруссия" else data["country"]
         cities = self.ref.get()
-        key = str(data['id'])
+        key = str(data["id"])
         if cities and key in cities:
             value = cities.get(key)
-            self.ref.child(key).update({'queries': value['queries'] + 1})
+            self.ref.child(key).update({"queries": value["queries"] + 1})
         else:
-            self.ref.child(key).set({
-                "city": data['city'],
-                "region": data['region'],
-                "country": country,
-                "queries": 1
-            })
+            self.ref.child(key).set(
+                {
+                    "city": data["city"],
+                    "region": data["region"],
+                    "country": country,
+                    "queries": 1,
+                }
+            )
 
     def clear_stats(self):
         self.ref.set({})
@@ -34,7 +36,7 @@ class Database:
         cities_space = []
         for key in reversed(data):
             value = self.ref.child(key).get()
-            queries.append(value['queries'])
+            queries.append(value["queries"])
             cities_new_line.append(get_full_city_name(value, "\n"))
             cities_space.append(get_full_city_name(value))
 

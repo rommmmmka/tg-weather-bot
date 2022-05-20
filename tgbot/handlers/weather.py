@@ -10,32 +10,42 @@ from tgbot.misc.other import get_full_city_name
 from tgbot.misc.weather import get_weather
 from tgbot.services.db import Database
 
-WEATHER_WRONG_COMMAND = ("<b>Ошибка!</b> Введите команду в одном из форматов:\n"
-                         "/weather [город]\n"
-                         "/w [город]")
+WEATHER_WRONG_COMMAND = (
+    "<b>Ошибка!</b> Введите команду в одном из форматов:\n"
+    "/weather [город]\n"
+    "/w [город]"
+)
 GEODB_URL = "https://wft-geo-db.p.rapidapi.com/v1/geo/cities/"
 
 
 async def callback_query_weather(callback_query: types.CallbackQuery):
-    config: Config = callback_query.bot.get('config')
+    config: Config = callback_query.bot.get("config")
     geodb_headers = {
         "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
-        "X-RapidAPI-Key": config.geodb_token
+        "X-RapidAPI-Key": config.geodb_token,
     }
     query = {"languageCode": "ru"}
 
     city_id = callback_query.data[2:]
-    coords_data = requests.request("GET", GEODB_URL + city_id, headers=geodb_headers, params=query).json()
-    lat = coords_data['data']['latitude']
-    lon = coords_data['data']['longitude']
+    coords_data = requests.request(
+        "GET", GEODB_URL + city_id, headers=geodb_headers, params=query
+    ).json()
+    lat = coords_data["data"]["latitude"]
+    lon = coords_data["data"]["longitude"]
 
     db: Database = callback_query.bot.get("db")
-    db.add_city(coords_data['data'])
+    db.add_city(coords_data["data"])
 
-    answer = get_weather(callback_query.bot, lat, lon, get_full_city_name(coords_data['data']))
+    answer = get_weather(
+        callback_query.bot, lat, lon, get_full_city_name(coords_data["data"])
+    )
     try:
-        await callback_query.bot.edit_message_text(answer, callback_query.message.chat.id,
-                                                   callback_query.message.message_id, reply_markup=None)
+        await callback_query.bot.edit_message_text(
+            answer,
+            callback_query.message.chat.id,
+            callback_query.message.message_id,
+            reply_markup=None,
+        )
     except Exception:
         pass
     await callback_query.bot.answer_callback_query(callback_query.id)
@@ -50,29 +60,40 @@ async def weather_command(message: types.Message):
     config: Config = message.bot.get("config")
     geodb_headers = {
         "X-RapidAPI-Host": "wft-geo-db.p.rapidapi.com",
-        "X-RapidAPI-Key": config.geodb_token
+        "X-RapidAPI-Key": config.geodb_token,
     }
     query = {
         "limit": "5",
         "namePrefix": city_query,
         "types": "CITY",
         "sort": "-population",
-        "languageCode": "en" if city_query[0] in ascii_letters else "ru"
+        "languageCode": "en" if city_query[0] in ascii_letters else "ru",
     }
 
-    coords_data = requests.request("GET", GEODB_URL, headers=geodb_headers, params=query).json()
-    match len(coords_data['data']):
+    coords_data = requests.request(
+        "GET", GEODB_URL, headers=geodb_headers, params=query
+    ).json()
+    match len(coords_data["data"]):
         case 0:
-            await message.reply("<b>Ошибка!</b> Город с таким названием не найден.", disable_notification=True)
+            await message.reply(
+                "<b>Ошибка!</b> Город с таким названием не найден.",
+                disable_notification=True,
+            )
         case 1:
-            lat = coords_data['data'][0]['latitude']
-            lon = coords_data['data'][0]['longitude']
+            lat = coords_data["data"][0]["latitude"]
+            lon = coords_data["data"][0]["longitude"]
             db: Database = message.bot.get("db")
-            db.add_city(coords_data['data'][0])
-            answer = get_weather(message.bot, lat, lon, get_full_city_name(coords_data['data'][0]))
-            await message.reply(answer, reply_markup=base_reply_kb(message.chat.type), disable_notification=True)
+            db.add_city(coords_data["data"][0])
+            answer = get_weather(
+                message.bot, lat, lon, get_full_city_name(coords_data["data"][0])
+            )
+            await message.reply(
+                answer,
+                reply_markup=base_reply_kb(message.chat.type),
+                disable_notification=True,
+            )
         case _:
-            answer, kb = cities_kb(coords_data['data'])
+            answer, kb = cities_kb(coords_data["data"])
             await message.reply(answer, reply_markup=kb, disable_notification=True)
 
 
@@ -80,7 +101,9 @@ async def location(message: types.Message):
     lat = message.location.latitude
     lon = message.location.longitude
     answer = get_weather(message.bot, lat, lon)
-    await message.reply(answer, reply_markup=base_reply_kb(message.chat.type), disable_notification=True)
+    await message.reply(
+        answer, reply_markup=base_reply_kb(message.chat.type), disable_notification=True
+    )
 
 
 def register_weather(dp: Dispatcher):

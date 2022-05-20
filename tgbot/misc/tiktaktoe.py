@@ -20,7 +20,7 @@ def get_tiktaktoe_patterns():
 
 def tiktaktoe_check_win(kb: list):
     draw = True
-    for player in [TIKTAKTOE_EMOJI['Cross'], TIKTAKTOE_EMOJI['Zero']]:
+    for player in [TIKTAKTOE_EMOJI["Cross"], TIKTAKTOE_EMOJI["Zero"]]:
         for pattern in get_tiktaktoe_patterns():
             win = True
             win_possible = True
@@ -30,7 +30,7 @@ def tiktaktoe_check_win(kb: list):
                         continue
                     if kb[i][j].text != player:
                         win = False
-                        if kb[i][j].text != TIKTAKTOE_EMOJI['Empty'] or not draw:
+                        if kb[i][j].text != TIKTAKTOE_EMOJI["Empty"] or not draw:
                             win_possible = False
                             break
                 if not win_possible:
@@ -51,10 +51,10 @@ def tiktaktoe_get_regular_place_coods(kb: list, place_coords: list):
             for j in range(3):
                 if pattern[i][j] == 0:
                     continue
-                if kb[i][j].text == TIKTAKTOE_EMOJI['Cross']:
+                if kb[i][j].text == TIKTAKTOE_EMOJI["Cross"]:
                     can_place = False
                     break
-                if kb[i][j].text == TIKTAKTOE_EMOJI['Empty']:
+                if kb[i][j].text == TIKTAKTOE_EMOJI["Empty"]:
                     curr_place_coords.append([i, j])
             if not can_place:
                 break
@@ -71,10 +71,10 @@ def tiktaktoe_get_critical_place_coords(kb: list, place_coords: list):
             for j in range(3):
                 if pattern[i][j] == 0:
                     continue
-                if kb[i][j].text == TIKTAKTOE_EMOJI['Zero']:
+                if kb[i][j].text == TIKTAKTOE_EMOJI["Zero"]:
                     need_to_place = False
                     break
-                if kb[i][j].text == TIKTAKTOE_EMOJI['Empty']:
+                if kb[i][j].text == TIKTAKTOE_EMOJI["Empty"]:
                     curr_place_coords.append([i, j])
             if not need_to_place:
                 break
@@ -87,7 +87,9 @@ def tiktaktoe_get_critical_place_coords(kb: list, place_coords: list):
 def tiktaktoe_place_zero(kb: list):
     base_place_coords = []
     for i in range(3):
-        base_place_coords.extend([i, j] for j in range(3) if kb[i][j].text == TIKTAKTOE_EMOJI['Empty'])
+        base_place_coords.extend(
+            [i, j] for j in range(3) if kb[i][j].text == TIKTAKTOE_EMOJI["Empty"]
+        )
     if not base_place_coords:
         base_place_coords = [[-1, -1]]
 
@@ -98,7 +100,7 @@ def tiktaktoe_place_zero(kb: list):
     for coords in place_coords:
         if coords == [-1, -1]:
             continue
-        kb[coords[0]][coords[1]].text = TIKTAKTOE_EMOJI['Zero']
+        kb[coords[0]][coords[1]].text = TIKTAKTOE_EMOJI["Zero"]
         break
 
     return kb
