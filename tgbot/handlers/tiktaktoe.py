@@ -140,16 +140,11 @@ async def tiktaktoe_start_group(message: types.Message):
 
 
 def register_tiktaktoe(dp: Dispatcher):
-    dp.register_callback_query_handler(callback_query_pick_gamemode, lambda c: c.data.split("_")[1] == "gmpick",
-                                       is_tiktaktoe_callback=True)
-    dp.register_callback_query_handler(callback_query_join, lambda c: c.data.split("_")[1] == "mpjoin",
-                                       is_tiktaktoe_callback=True)
-    dp.register_callback_query_handler(callback_query_singleplayer, lambda c: c.data.split("_")[1] == "sp",
-                                       is_tiktaktoe_callback=True)
-    dp.register_callback_query_handler(callback_query_multiplayer, lambda c: c.data.split("_")[1] == "mp",
-                                       is_tiktaktoe_callback=True)
-    dp.register_callback_query_handler(callback_query_killed_answer, lambda c: c.data.split("_")[1] == "killed",
-                                       is_tiktaktoe_callback=True)
+    dp.register_callback_query_handler(callback_query_pick_gamemode, command=["t", "gmpick"])
+    dp.register_callback_query_handler(callback_query_join, command=["t", "mpjoin"])
+    dp.register_callback_query_handler(callback_query_singleplayer, command=["t", "sp"])
+    dp.register_callback_query_handler(callback_query_multiplayer, command=["t", "mp"])
+    dp.register_callback_query_handler(callback_query_killed_answer, command=["t", "killed"])
 
     dp.register_message_handler(tiktaktoe_start, commands=["tiktaktoe", "ttt"], is_chat_private=True)
     dp.register_message_handler(tiktaktoe_start_group, commands=["tiktaktoe", "ttt"], is_chat_private=False)

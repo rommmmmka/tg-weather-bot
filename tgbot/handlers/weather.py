@@ -84,6 +84,7 @@ async def location(message: types.Message):
 
 
 def register_weather(dp: Dispatcher):
-    dp.register_callback_query_handler(callback_query_weather, lambda c: c.data[0] == "w")
+    dp.register_callback_query_handler(callback_query_weather, command=["w"])
+
     dp.register_message_handler(weather_command, commands=["weather", "w"])
     dp.register_message_handler(location, content_types=["location"])

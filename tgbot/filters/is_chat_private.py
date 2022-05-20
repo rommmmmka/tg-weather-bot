@@ -1,12 +1,10 @@
-import typing
-
 from aiogram.dispatcher.filters import BoundFilter
 
 
-class PrivateChatFilter(BoundFilter):
+class IsChatPrivateFilter(BoundFilter):
     key = 'is_chat_private'
 
-    def __init__(self, is_chat_private: typing.Optional[bool] = None):
+    def __init__(self, is_chat_private: bool | None):
         self.is_chat_private = is_chat_private
 
     async def check(self, obj):

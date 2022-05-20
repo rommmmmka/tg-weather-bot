@@ -17,6 +17,7 @@ async def getmyid_command(message: types.Message):
 
 
 def register_misc(dp: Dispatcher):
-    dp.register_callback_query_handler(callback_query_delete, lambda c: c.data == "m_delete")
+    dp.register_callback_query_handler(callback_query_delete, command=["m", "delete"])
+
     dp.register_message_handler(getchatid_command, commands=["getchatid", "gcid"])
     dp.register_message_handler(getmyid_command, commands=["getmyid", "gmid"])
