@@ -35,7 +35,7 @@ def register_all_handlers(dp: Dispatcher):
 async def main():
     logging.basicConfig(
         level=logging.INFO,
-        format=u'%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s',
+        format=u'[%(asctime)s] #%(levelname)s %(filename)s:%(lineno)d - %(name)s - %(message)s',
     )
     logger.info("Запуск бота...")
     config = load_config(".env")
@@ -53,8 +53,6 @@ async def main():
     try:
         await dp.start_polling()
     finally:
-        await dp.storage.close()
-        await dp.storage.wait_closed()
         await bot.session.close()
 
 
@@ -62,4 +60,4 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        logger.error("Бот остановлен!")
+        logger.warning("Бот остановлен!")
